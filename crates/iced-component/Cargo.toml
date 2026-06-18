@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 aura-anim-core.workspace = true
+spectrum-theme.workspace = true
 
 [features]
 
