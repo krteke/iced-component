@@ -11,6 +11,7 @@ pub use motion::{
     MotionTransition, Timing,
 };
 pub use theme::{
-    Color, FontStyle, FontWeight, Length, LengthUnit, LineHeight, Radius, Rgb, Rgba, ShadowLayer,
-    ThemeBuildError,
+    Color, ElevationTokens, FontStyle, FontWeight, Length, LengthUnit, LineHeight, PaletteTokens,
+    Radius, Rgb, Rgba, ShadowLayer, ShapeTokens, ThemeBuildError, ThemePack, set_theme_pack,
+    with_theme_pack,
 };
