@@ -1,4 +1,6 @@
-use crate::{ButtonPrimaryTokens, ButtonStandardTokens, Color, Radius, ShadowLayer, ThemePack};
+use crate::{
+    ButtonPrimaryTokens, ButtonStandardTokens, Color, Radius, ShadowLayer, ThemeContext, ThemePack,
+};
 
 /// Visual role for resolving button theme tokens.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -47,6 +49,16 @@ impl ButtonResolvedStyle {
             ButtonVariant::Standard => Self::from_standard_tokens(&theme.button.standard, state),
             ButtonVariant::Primary => Self::from_primary_tokens(&theme.button.primary, state),
         }
+    }
+
+    /// Resolves final button style from a theme context.
+    #[must_use]
+    pub fn from_context(
+        context: &ThemeContext,
+        variant: ButtonVariant,
+        state: ButtonStyleState,
+    ) -> Self {
+        Self::from_theme(context.theme(), variant, state)
     }
 
     /// Resolves final style from standard button tokens.
@@ -250,6 +262,22 @@ mod tests {
         assert_eq!(hovered.background, theme.button.standard.hover.bg);
         assert_eq!(pressed.background, theme.button.standard.pressed.bg);
         assert_eq!(hovered.foreground, theme.button.standard.fg);
+    }
+
+    #[test]
+    fn resolved_button_style_uses_scoped_context() {
+        let context = crate::ThemeContext::from_theme(&ThemePack::adwaita());
+        let scoped_bg = Color::new(221, 238, 255);
+        let scoped = context.scoped(|theme| theme.button.standard.hover.bg = scoped_bg);
+
+        let style = ButtonResolvedStyle::from_context(
+            &scoped,
+            ButtonVariant::Standard,
+            ButtonStyleState::Hovered,
+        );
+
+        assert_eq!(style.background, scoped_bg);
+        assert_ne!(context.theme().button.standard.hover.bg, scoped_bg);
     }
 
     #[test]

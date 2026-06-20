@@ -1,9 +1,11 @@
 //! Theme token value types reused from `spectrum-theme`.
 
+mod context;
 mod error;
 mod pack;
 mod surface;
 
+pub use context::{ThemeContext, with_theme_context};
 pub use error::ThemeLoadError;
 pub use pack::{
     ADWAITA_LIGHT_TOML, AppTokens, ButtonPrimaryTokens, ButtonStandardTokens, SurfaceRaisedTokens,

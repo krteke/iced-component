@@ -16,5 +16,5 @@ pub use theme::{
     ADWAITA_LIGHT_TOML, AppTokens, ButtonPrimaryTokens, ButtonStandardTokens, Color, FontStyle,
     FontWeight, Length, LengthUnit, LineHeight, Radius, Rgb, Rgba, ShadowLayer,
     SurfaceRaisedTokens, SurfaceRole, SurfaceStyleTokens, SurfaceTokens, ThemeBuildError,
-    ThemeLoadError, ThemePack, set_theme_pack, with_theme_pack,
+    ThemeContext, ThemeLoadError, ThemePack, set_theme_pack, with_theme_context, with_theme_pack,
 };
