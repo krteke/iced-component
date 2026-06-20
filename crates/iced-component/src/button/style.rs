@@ -1,4 +1,6 @@
-use crate::{Color, Radius, ShadowLayer, SurfaceRole, SurfaceStyleTokens, ThemePack};
+use crate::{
+    Color, ControlStyleTokens, Radius, ShadowLayer, SurfaceRole, SurfaceStyleTokens, ThemePack,
+};
 
 /// Visual role for resolving button theme tokens.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -31,6 +33,7 @@ impl ButtonStyleTokens {
     #[must_use]
     pub fn from_theme(theme: &ThemePack, variant: ButtonVariant) -> Self {
         let palette = &theme.palette;
+        let control = ControlStyleTokens::from_theme(theme);
         let surface = SurfaceStyleTokens::from_theme(theme, SurfaceRole::Raised);
         let shadow = surface.shadow.expect("raised surface has shadow");
         let (background, foreground, border) = match variant {
@@ -42,8 +45,8 @@ impl ButtonStyleTokens {
             background,
             foreground,
             border,
-            focus_ring: palette.focus_ring,
-            radius: theme.shape.control_radius,
+            focus_ring: control.focus_ring,
+            radius: control.radius,
             shadow,
         }
     }

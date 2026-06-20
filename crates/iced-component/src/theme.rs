@@ -1,10 +1,12 @@
 //! Theme token value types reused from `spectrum-theme`.
 
+mod control;
 mod surface;
 
 use core::convert::Infallible;
 use std::cell::RefCell;
 
+pub use control::ControlStyleTokens;
 use spectrum_theme::{
     __private::{ColorSource, LengthSource, RadiusSource, ShadowSource, TokenSource},
     define_theme_tokens,
@@ -34,6 +36,11 @@ define_theme_tokens! {
             panel_radius: Radius,
             gap: Length,
         }
+        control {
+            disabled_foreground: Color,
+            hover_overlay: Color,
+            pressed_overlay: Color,
+        }
         elevation {
             raised: ShadowLayer,
         }
@@ -44,6 +51,8 @@ define_theme_tokens! {
 pub type PaletteTokens = ThemePackPalette;
 /// Shape token group generated for [`ThemePack`].
 pub type ShapeTokens = ThemePackShape;
+/// Control token group generated for [`ThemePack`].
+pub type ControlTokens = ThemePackControl;
 /// Elevation token group generated for [`ThemePack`].
 pub type ElevationTokens = ThemePackElevation;
 
@@ -94,6 +103,9 @@ impl ColorSource for AdwaitaSource {
             "palette.accent" => Color::new(53, 132, 228),
             "palette.border" => Color::new_rgba(0, 0, 0, 31),
             "palette.focus_ring" => Color::new(28, 113, 216),
+            "control.disabled_foreground" => Color::new_rgba(94, 92, 100, 153),
+            "control.hover_overlay" => Color::new_rgba(0, 0, 0, 14),
+            "control.pressed_overlay" => Color::new_rgba(0, 0, 0, 28),
             _ => unreachable!("unknown color token path: {path}"),
         })
     }
