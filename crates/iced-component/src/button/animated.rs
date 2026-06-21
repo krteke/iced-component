@@ -1,8 +1,10 @@
-use aura_anim_core::{Animatable, MotionError, MotionRuntime};
+use aura_anim_core::{Animatable, MotionError, MotionRuntime, timing::Timing};
+use iced::animation::Easing;
 
 use crate::{
-    ButtonResolvedStyle, ButtonStyleState, ComponentContext, ComponentMotion, Easing, MotionSpeed,
-    MotionTransition, Timing, button::ButtonVariant,
+    button::{ButtonResolvedStyle, ButtonStyleState, ButtonVariant},
+    component::{ComponentContext, ComponentMotion},
+    motion::{MotionSpeed, MotionTransition},
 };
 
 /// Animatable visual values for an animated button.
@@ -59,6 +61,7 @@ pub enum ButtonInteraction {
 /// Stateful animated button core without Iced rendering.
 #[derive(Debug)]
 pub struct AnimatedButton {
+    label: String,
     variant: ButtonVariant,
     flags: ButtonFlags,
     motion: ComponentMotion<ButtonMotion>,
@@ -67,12 +70,25 @@ pub struct AnimatedButton {
 impl AnimatedButton {
     /// Creates a button core with an unregistered motion handle.
     #[must_use]
-    pub fn new(variant: ButtonVariant) -> Self {
+    pub fn new(label: impl Into<String>, variant: ButtonVariant) -> Self {
         Self {
+            label: label.into(),
             variant,
             flags: ButtonFlags::empty(),
             motion: ComponentMotion::new(ButtonMotion::idle(), Timing::linear(120.0)),
         }
+    }
+
+    /// Creates a standard animated button.
+    #[must_use]
+    pub fn standard(label: impl Into<String>) -> Self {
+        Self::new(label, ButtonVariant::Standard)
+    }
+
+    /// Creates a primary animated button.
+    #[must_use]
+    pub fn primary(label: impl Into<String>) -> Self {
+        Self::new(label, ButtonVariant::Primary)
     }
 
     /// Registers the button motion handle in the application runtime.
@@ -153,6 +169,12 @@ impl AnimatedButton {
     #[must_use]
     pub const fn variant(&self) -> ButtonVariant {
         self.variant
+    }
+
+    /// Returns this button label.
+    #[must_use]
+    pub fn label(&self) -> &str {
+        &self.label
     }
 
     fn style_state(&self) -> ButtonStyleState {
@@ -265,13 +287,17 @@ mod tests {
     use aura_anim_core::{MotionRuntime, timing::Duration};
     use float_cmp::assert_approx_eq;
 
+    use crate::{
+        button::{ButtonStyleState, ButtonVariant},
+        component::ComponentContext,
+    };
+
     use super::{AnimatedButton, ButtonInteraction, ButtonMotion};
-    use crate::{ButtonVariant, ComponentContext};
 
     #[test]
     fn interaction_before_registration_updates_target_without_runtime_motion() {
         let mut runtime = MotionRuntime::new();
-        let mut button = AnimatedButton::new(ButtonVariant::Standard);
+        let mut button = AnimatedButton::standard("Save");
 
         let changed = button
             .update(ButtonInteraction::HoverEnter, &mut runtime)
@@ -295,7 +321,7 @@ mod tests {
     fn registered_hover_transitions_runtime_motion() {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut button = AnimatedButton::new(ButtonVariant::Primary);
+        let mut button = AnimatedButton::primary("Save");
 
         button.register(&mut runtime, &context);
         let changed = button
@@ -313,7 +339,7 @@ mod tests {
     fn disabled_button_ignores_press_down() {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut button = AnimatedButton::new(ButtonVariant::Standard);
+        let mut button = AnimatedButton::standard("Save");
 
         button.register(&mut runtime, &context);
         button
@@ -333,7 +359,7 @@ mod tests {
     fn snapshot_combines_style_and_motion() {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut button = AnimatedButton::new(ButtonVariant::Primary);
+        let mut button = AnimatedButton::primary("Save");
 
         button.register(&mut runtime, &context);
         button
@@ -344,7 +370,7 @@ mod tests {
         let snapshot = button.snapshot(&runtime, &context).unwrap();
 
         assert_eq!(snapshot.variant, ButtonVariant::Primary);
-        assert_eq!(snapshot.style_state, crate::ButtonStyleState::Pressed);
+        assert_eq!(snapshot.style_state, ButtonStyleState::Pressed);
         assert_eq!(
             snapshot.style.background,
             context.theme().theme().button.primary.pressed.bg
@@ -356,7 +382,7 @@ mod tests {
     fn snapshot_reports_focus_and_disabled_flags() {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut button = AnimatedButton::new(ButtonVariant::Standard);
+        let mut button = AnimatedButton::standard("Save");
 
         button
             .update(ButtonInteraction::Focus, &mut runtime)
@@ -369,7 +395,7 @@ mod tests {
 
         assert!(snapshot.focused);
         assert!(snapshot.disabled);
-        assert_eq!(snapshot.style_state, crate::ButtonStyleState::Disabled);
+        assert_eq!(snapshot.style_state, ButtonStyleState::Disabled);
         assert_approx_eq!(f32, snapshot.motion.focus_alpha, 0.5);
     }
 }

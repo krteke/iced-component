@@ -4,7 +4,7 @@ use spectrum_theme::{Color, Radius, ShadowLayer, define_theme_tokens};
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
-use crate::ThemeLoadError;
+use crate::theme::ThemeLoadError;
 
 /// Embedded default Adwaita-like light theme.
 pub const ADWAITA_LIGHT_TOML: &str = include_str!("../../themes/adwaita-light.toml");
@@ -117,8 +117,9 @@ pub fn set_theme_pack(theme: ThemePack) {
 
 #[cfg(test)]
 mod tests {
+    use spectrum_theme::Color;
+
     use super::{ADWAITA_LIGHT_TOML, ThemePack, set_theme_pack, with_theme_pack};
-    use crate::Color;
 
     #[test]
     fn adwaita_baseline_uses_muted_blue_accent() {

@@ -6,18 +6,5 @@ pub mod motion;
 pub mod theme;
 
 pub use aura_anim_core::{Motion, MotionError, MotionRuntime};
-pub use button::{
-    AnimatedButton, AnimatedButtonSnapshot, ButtonInteraction, ButtonMotion, ButtonResolvedStyle,
-    ButtonStyleState, ButtonVariant,
-};
-pub use component::{ComponentContext, ComponentMotion};
-pub use motion::{
-    Duration, Easing, MotionPreferences, MotionPreferencesController, MotionSpeed, MotionTokens,
-    MotionTransition, Timing,
-};
-pub use theme::{
-    ADWAITA_LIGHT_TOML, AppTokens, ButtonPrimaryTokens, ButtonStandardTokens, Color, FontStyle,
-    FontWeight, Length, LengthUnit, LineHeight, Radius, Rgb, Rgba, ShadowLayer,
-    SurfaceRaisedTokens, SurfaceRole, SurfaceStyleTokens, SurfaceTokens, ThemeBuildError,
-    ThemeContext, ThemeLoadError, ThemePack, set_theme_pack, with_theme_context, with_theme_pack,
-};
+#[cfg(feature = "iced")]
+pub use button::{AnimatedButtonView, button_style};

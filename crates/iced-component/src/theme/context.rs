@@ -64,8 +64,11 @@ pub fn with_theme_context<R>(read: impl FnOnce(&ThemeContext) -> R) -> R {
 
 #[cfg(test)]
 mod tests {
+    use spectrum_theme::Color;
+
+    use crate::theme::{ThemePack, set_theme_pack};
+
     use super::{ThemeContext, with_theme_context};
-    use crate::{Color, ThemePack, set_theme_pack};
 
     #[test]
     fn current_context_reads_thread_local_theme() {

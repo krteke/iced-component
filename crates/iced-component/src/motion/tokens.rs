@@ -88,8 +88,9 @@ impl MotionTransition {
 mod tests {
     use aura_anim_core::timing::{Duration, Easing};
 
+    use crate::motion::MotionPreferences;
+
     use super::{MotionSpeed, MotionTokens, MotionTransition};
-    use crate::MotionPreferences;
 
     #[test]
     fn tokens_resolve_to_aura_timing_when_motion_is_allowed() {

@@ -1,4 +1,9 @@
-use crate::{Color, ComponentContext, Radius, ShadowLayer, ThemeContext, ThemePack};
+use spectrum_theme::{Color, Radius, ShadowLayer};
+
+use crate::{
+    component::ComponentContext,
+    theme::{ThemeContext, ThemePack},
+};
 
 /// Visual role for resolving surface theme tokens.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -71,8 +76,14 @@ impl SurfaceStyleTokens {
 
 #[cfg(test)]
 mod tests {
+    use spectrum_theme::Color;
+
+    use crate::{
+        component::ComponentContext,
+        theme::{ThemeContext, ThemePack},
+    };
+
     use super::{SurfaceRole, SurfaceStyleTokens};
-    use crate::ThemePack;
 
     #[test]
     fn background_surface_has_no_shadow() {
@@ -96,8 +107,8 @@ mod tests {
 
     #[test]
     fn surface_style_uses_scoped_context() {
-        let context = crate::ThemeContext::from_theme(&ThemePack::adwaita());
-        let scoped_bg = crate::Color::new(238, 244, 250);
+        let context = ThemeContext::from_theme(&ThemePack::adwaita());
+        let scoped_bg = Color::new(238, 244, 250);
         let scoped = context.scoped(|theme| theme.surface.raised.bg = scoped_bg);
 
         let style = SurfaceStyleTokens::from_context(&scoped, SurfaceRole::Raised);
@@ -108,9 +119,9 @@ mod tests {
 
     #[test]
     fn surface_style_uses_component_context() {
-        let scoped_bg = crate::Color::new(238, 244, 250);
-        let context = crate::ComponentContext::current()
-            .scoped_theme(|theme| theme.surface.raised.bg = scoped_bg);
+        let scoped_bg = Color::new(238, 244, 250);
+        let context =
+            ComponentContext::current().scoped_theme(|theme| theme.surface.raised.bg = scoped_bg);
 
         let style = SurfaceStyleTokens::from_component_context(&context, SurfaceRole::Raised);
 

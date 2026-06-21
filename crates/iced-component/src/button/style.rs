@@ -1,6 +1,8 @@
+use spectrum_theme::{Color, Radius, ShadowLayer};
+
 use crate::{
-    ButtonPrimaryTokens, ButtonStandardTokens, Color, ComponentContext, Radius, ShadowLayer,
-    ThemeContext, ThemePack,
+    component::ComponentContext,
+    theme::{ButtonPrimaryTokens, ButtonStandardTokens, ThemeContext, ThemePack},
 };
 
 /// Visual role for resolving button theme tokens.
@@ -122,39 +124,30 @@ macro_rules! impl_button_tokens {
             fn bg(&self) -> Color {
                 self.bg
             }
-
             fn fg(&self) -> Color {
                 self.fg
             }
-
             fn border(&self) -> Color {
                 self.border
             }
-
             fn hover_bg(&self) -> Color {
                 self.hover.bg
             }
-
             fn pressed_bg(&self) -> Color {
                 self.pressed.bg
             }
-
             fn disabled_bg(&self) -> Color {
                 self.disabled.bg
             }
-
             fn disabled_fg(&self) -> Color {
                 self.disabled.fg
             }
-
             fn focus_ring(&self) -> Color {
                 self.focus.ring
             }
-
             fn radius(&self) -> Radius {
                 self.radius
             }
-
             fn shadow(&self) -> ShadowLayer {
                 self.shadow
             }
@@ -167,8 +160,14 @@ impl_button_tokens!(ButtonPrimaryTokens);
 
 #[cfg(test)]
 mod tests {
+    use spectrum_theme::Color;
+
+    use crate::{
+        component::ComponentContext,
+        theme::{ThemeContext, ThemePack},
+    };
+
     use super::{ButtonResolvedStyle, ButtonStyleState, ButtonVariant};
-    use crate::{Color, ThemePack};
 
     #[test]
     fn standard_button_uses_neutral_surface_tokens() {
@@ -277,7 +276,7 @@ mod tests {
 
     #[test]
     fn resolved_button_style_uses_scoped_context() {
-        let context = crate::ThemeContext::from_theme(&ThemePack::adwaita());
+        let context = ThemeContext::from_theme(&ThemePack::adwaita());
         let scoped_bg = Color::new(221, 238, 255);
         let scoped = context.scoped(|theme| theme.button.standard.hover.bg = scoped_bg);
 
@@ -294,7 +293,7 @@ mod tests {
     #[test]
     fn resolved_button_style_uses_component_context() {
         let scoped_bg = Color::new(221, 238, 255);
-        let context = crate::ComponentContext::current()
+        let context = ComponentContext::current()
             .scoped_theme(|theme| theme.button.standard.hover.bg = scoped_bg);
 
         let style = ButtonResolvedStyle::from_component_context(

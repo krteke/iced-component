@@ -17,6 +17,7 @@ spectrum-resolver = "0.1.1"
 
 aura-anim = "0.3.0"
 aura-anim-core = "0.3.0"
+iced = { version = "0.14.0", features = ["tokio"] }
 
 toml = "1.1.2"
 thiserror = "2.0.18"

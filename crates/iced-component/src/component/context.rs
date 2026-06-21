@@ -1,4 +1,7 @@
-use crate::{MotionPreferences, MotionTokens, ThemeContext, ThemePack};
+use crate::{
+    motion::{MotionPreferences, MotionTokens},
+    theme::{ThemeContext, ThemePack},
+};
 
 /// Shared read-only inputs used while updating or rendering components.
 #[derive(Clone)]
@@ -85,9 +88,12 @@ impl Default for ComponentContext {
 #[cfg(test)]
 mod tests {
     use aura_anim_core::timing::Duration;
+    use spectrum_theme::Color;
 
-    use super::ComponentContext;
-    use crate::{Color, MotionPreferences, MotionSpeed, MotionTokens};
+    use crate::{
+        component::ComponentContext,
+        motion::{MotionPreferences, MotionSpeed, MotionTokens},
+    };
 
     #[test]
     fn scoped_theme_keeps_motion_inputs() {
