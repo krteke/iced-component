@@ -5,7 +5,7 @@ use std::time::Duration;
 use iced::widget::{button, column, container, row, text};
 use iced::{Element, Fill, Subscription, Task, Theme, application, time};
 use iced_component::MotionRuntime;
-use iced_component::button::{AnimatedButton, ButtonInteraction};
+use iced_component::button::{AnimatedButton, ButtonEvent};
 use iced_component::component::ComponentContext;
 use iced_component::motion::{MotionPreferences, MotionPreferencesController};
 
@@ -30,11 +30,19 @@ struct Demo {
 #[derive(Debug, Clone, Copy)]
 enum Message {
     Tick,
-    SaveButton(ButtonInteraction),
-    ResetButton(ButtonInteraction),
-    SaveReleased,
-    ResetReleased,
+    SaveButton(ButtonEvent<SaveAction>),
+    ResetButton(ButtonEvent<ResetAction>),
     ToggleReduceMotion,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum SaveAction {
+    Save,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ResetAction {
+    Reset,
 }
 
 impl Demo {
@@ -66,23 +74,27 @@ fn update(state: &mut Demo, message: Message) -> Task<Message> {
                 .runtime
                 .tick(iced_component::motion::Duration::from_millis(16.0));
         }
-        Message::SaveButton(interaction) => {
-            let _ = state.save_button.update(interaction, &mut state.runtime);
-        }
-        Message::ResetButton(interaction) => {
-            let _ = state.reset_button.update(interaction, &mut state.runtime);
-        }
-        Message::SaveReleased => {
-            let _ = state
+        Message::SaveButton(event) => {
+            if state
                 .save_button
-                .update(ButtonInteraction::PressUp, &mut state.runtime);
-            state.clicks += 1;
+                .update_event(event, &mut state.runtime)
+                .ok()
+                .flatten()
+                .is_some()
+            {
+                state.clicks += 1;
+            }
         }
-        Message::ResetReleased => {
-            let _ = state
+        Message::ResetButton(event) => {
+            if state
                 .reset_button
-                .update(ButtonInteraction::PressUp, &mut state.runtime);
-            state.clicks = 0;
+                .update_event(event, &mut state.runtime)
+                .ok()
+                .flatten()
+                .is_some()
+            {
+                state.clicks = 0;
+            }
         }
         Message::ToggleReduceMotion => {
             let next = !state.reduce_motion.reduce_motion();
@@ -98,20 +110,20 @@ fn subscription(_state: &Demo) -> Subscription<Message> {
 }
 
 fn theme(_state: &Demo) -> Theme {
-    Theme::Light
+    Theme::Dark
 }
 
 fn view(state: &Demo) -> Element<'_, Message> {
     let save = state
         .save_button
         .view(&state.runtime, &state.context)
-        .on_interaction(Message::SaveButton)
-        .on_press(Message::SaveReleased);
+        .on_press(SaveAction::Save)
+        .on_event(Message::SaveButton);
     let reset = state
         .reset_button
         .view(&state.runtime, &state.context)
-        .on_interaction(Message::ResetButton)
-        .on_press(Message::ResetReleased);
+        .on_press(ResetAction::Reset)
+        .on_event(Message::ResetButton);
 
     let snapshot = state
         .save_button
@@ -132,7 +144,7 @@ fn view(state: &Demo) -> Element<'_, Message> {
             reset,
             button(text(reduce_label))
                 .on_press(Message::ToggleReduceMotion)
-                .padding([8.0, 12.0])
+                .padding([8.0, 12.0]),
         ]
         .spacing(12),
         text(format!(

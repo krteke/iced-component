@@ -1,10 +1,9 @@
 use aura_anim_core::{Animatable, MotionError, MotionRuntime, timing::Timing};
-use iced::animation::Easing;
 
 use crate::{
     button::{ButtonResolvedStyle, ButtonStyleState, ButtonVariant},
     component::{ComponentContext, ComponentMotion},
-    motion::{MotionSpeed, MotionTransition},
+    motion::{Easing, MotionSpeed, MotionTransition},
 };
 
 /// Animatable visual values for an animated button.
@@ -56,6 +55,15 @@ pub enum ButtonInteraction {
     Blur,
     /// Enables or disables the button.
     SetDisabled(bool),
+}
+
+/// Button event that can carry an application action on release.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ButtonEvent<Action> {
+    /// Internal interaction that only updates button state.
+    Interaction(ButtonInteraction),
+    /// Release event that first resets pressed state, then yields an action.
+    Pressed(Action),
 }
 
 /// Stateful animated button core without Iced rendering.
@@ -136,6 +144,25 @@ impl AnimatedButton {
         }
 
         self.motion.transition_to(self.target_motion(), runtime)
+    }
+
+    /// Applies a button event and returns its application action, if any.
+    pub fn update_event<Action>(
+        &mut self,
+        event: ButtonEvent<Action>,
+        runtime: &mut MotionRuntime,
+    ) -> Result<Option<Action>, MotionError> {
+        match event {
+            ButtonEvent::Interaction(interaction) => {
+                self.update(interaction, runtime)?;
+                Ok(None)
+            }
+            ButtonEvent::Pressed(action) => {
+                let disabled = self.flags.contains(ButtonFlags::DISABLED);
+                self.update(ButtonInteraction::PressUp, runtime)?;
+                Ok((!disabled).then_some(action))
+            }
+        }
     }
 
     /// Returns the current runtime motion value, or the target value before registration.
@@ -292,7 +319,7 @@ mod tests {
         component::ComponentContext,
     };
 
-    use super::{AnimatedButton, ButtonInteraction, ButtonMotion};
+    use super::{AnimatedButton, ButtonEvent, ButtonInteraction, ButtonMotion};
 
     #[test]
     fn interaction_before_registration_updates_target_without_runtime_motion() {
@@ -353,6 +380,28 @@ mod tests {
         let motion = button.motion_value(&runtime).unwrap();
         assert_approx_eq!(f32, motion.scale, 1.0);
         assert_approx_eq!(f32, motion.bg_alpha, 0.45);
+    }
+
+    #[test]
+    fn pressed_event_releases_button_and_returns_action() {
+        let mut runtime = MotionRuntime::new();
+        let mut button = AnimatedButton::standard("Save");
+
+        button
+            .update(ButtonInteraction::PressDown, &mut runtime)
+            .unwrap();
+        let action = button
+            .update_event(ButtonEvent::Pressed("save"), &mut runtime)
+            .unwrap();
+
+        assert_eq!(action, Some("save"));
+        assert_eq!(
+            button
+                .snapshot(&runtime, &ComponentContext::current())
+                .unwrap()
+                .style_state,
+            ButtonStyleState::Idle
+        );
     }
 
     #[test]

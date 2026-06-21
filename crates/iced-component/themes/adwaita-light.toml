@@ -39,7 +39,7 @@ description = "Muted Adwaita-like baseline for Aura Iced components."
 [radii]
 "surface.base.radius" = "8px"
 "surface.raised.radius" = "{surface.base.radius}"
-"button.standard.radius" = "6px"
+"button.standard.radius" = "9px"
 "button.primary.radius" = "{button.standard.radius}"
 
 [[shadows]]

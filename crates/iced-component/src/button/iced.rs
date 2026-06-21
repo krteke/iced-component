@@ -4,16 +4,16 @@ use iced::widget::{button, mouse_area, text};
 use iced::{Background, Border, Color, Element, Shadow, Vector};
 use spectrum_theme::iced::{IcedColorAdapter, IcedRadiusAdapter, IcedShadowAdapter};
 
-use super::{AnimatedButton, AnimatedButtonSnapshot, ButtonInteraction};
+use super::{AnimatedButton, AnimatedButtonSnapshot, ButtonEvent, ButtonInteraction};
 use crate::component::ComponentContext;
 use crate::{MotionError, MotionRuntime};
 
 /// Iced view builder for [`AnimatedButton`].
-pub struct AnimatedButtonView<'a, Message> {
+pub struct AnimatedButtonView<'a, Message, Action = ()> {
     snapshot: AnimatedButtonSnapshot,
     label: &'a str,
-    on_interaction: Option<Box<dyn Fn(ButtonInteraction) -> Message + 'a>>,
-    on_press: Option<Message>,
+    on_event: Option<Box<dyn Fn(ButtonEvent<Action>) -> Message + 'a>>,
+    on_press: Option<Action>,
     padding: [f32; 2],
 }
 
@@ -44,33 +44,59 @@ impl AnimatedButton {
         Ok(AnimatedButtonView {
             snapshot: self.snapshot(runtime, context)?,
             label: self.label(),
-            on_interaction: None,
+            on_event: None,
             on_press: None,
             padding: [8.0, 14.0],
         })
     }
 }
 
-impl<'a, Message> AnimatedButtonView<'a, Message> {
+impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
+    /// Maps button events into application messages.
+    #[must_use]
+    pub fn on_event(mut self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
+        self.on_event = Some(Box::new(mapper));
+        self
+    }
+
     /// Maps internal button interactions into application messages.
     #[must_use]
     pub fn on_interaction(mut self, mapper: impl Fn(ButtonInteraction) -> Message + 'a) -> Self {
-        self.on_interaction = Some(Box::new(mapper));
+        self.on_event = Some(Box::new(move |event| match event {
+            ButtonEvent::Interaction(interaction) => mapper(interaction),
+            ButtonEvent::Pressed(_) => mapper(ButtonInteraction::PressUp),
+        }));
         self
     }
 
-    /// Sets the application message emitted when the button is released.
+    /// Sets the application action emitted when the button is released.
     #[must_use]
-    pub fn on_press(mut self, message: Message) -> Self {
-        self.on_press = Some(message);
-        self
+    pub fn on_press<NextAction>(
+        self,
+        action: NextAction,
+    ) -> AnimatedButtonView<'a, Message, NextAction> {
+        AnimatedButtonView {
+            snapshot: self.snapshot,
+            label: self.label,
+            on_event: None,
+            on_press: Some(action),
+            padding: self.padding,
+        }
     }
 
-    /// Sets the application message emitted when the button is released, if any.
+    /// Sets the application action emitted when the button is released, if any.
     #[must_use]
-    pub fn on_press_maybe(mut self, message: Option<Message>) -> Self {
-        self.on_press = message;
-        self
+    pub fn on_press_maybe<NextAction>(
+        self,
+        action: Option<NextAction>,
+    ) -> AnimatedButtonView<'a, Message, NextAction> {
+        AnimatedButtonView {
+            snapshot: self.snapshot,
+            label: self.label,
+            on_event: None,
+            on_press: action,
+            padding: self.padding,
+        }
     }
 
     /// Sets horizontal and vertical padding.
@@ -81,11 +107,12 @@ impl<'a, Message> AnimatedButtonView<'a, Message> {
     }
 }
 
-impl<'a, Message> From<AnimatedButtonView<'a, Message>> for Element<'a, Message>
+impl<'a, Message, Action> From<AnimatedButtonView<'a, Message, Action>> for Element<'a, Message>
 where
     Message: Clone + 'a,
+    Action: 'a,
 {
-    fn from(view: AnimatedButtonView<'a, Message>) -> Self {
+    fn from(view: AnimatedButtonView<'a, Message, Action>) -> Self {
         let widget = button(text(view.label))
             .padding(view.padding)
             .style(move |_theme, _status| button_style(view.snapshot));
@@ -93,18 +120,24 @@ where
         if view.snapshot.disabled {
             widget.into()
         } else {
-            let on_interaction = view
-                .on_interaction
-                .expect("AnimatedButtonView requires on_interaction for enabled buttons");
+            let on_event = view
+                .on_event
+                .expect("AnimatedButtonView requires on_event for enabled buttons");
 
             mouse_area(widget)
-                .on_enter(on_interaction(ButtonInteraction::HoverEnter))
-                .on_exit(on_interaction(ButtonInteraction::HoverExit))
-                .on_press(on_interaction(ButtonInteraction::PressDown))
-                .on_release(
-                    view.on_press
-                        .unwrap_or_else(|| on_interaction(ButtonInteraction::PressUp)),
-                )
+                .on_enter(on_event(ButtonEvent::Interaction(
+                    ButtonInteraction::HoverEnter,
+                )))
+                .on_exit(on_event(ButtonEvent::Interaction(
+                    ButtonInteraction::HoverExit,
+                )))
+                .on_press(on_event(ButtonEvent::Interaction(
+                    ButtonInteraction::PressDown,
+                )))
+                .on_release(match view.on_press {
+                    Some(action) => on_event(ButtonEvent::Pressed(action)),
+                    None => on_event(ButtonEvent::Interaction(ButtonInteraction::PressUp)),
+                })
                 .into()
         }
     }
@@ -157,7 +190,7 @@ mod tests {
     use iced::Element;
 
     use crate::{
-        button::{AnimatedButton, ButtonInteraction},
+        button::{AnimatedButton, ButtonEvent, ButtonInteraction},
         component::ComponentContext,
     };
 
@@ -186,10 +219,14 @@ mod tests {
 
     #[test]
     fn view_builder_accepts_app_press_message() {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum Action {
+            Save,
+        }
+
         #[derive(Clone)]
         enum Message {
-            Interaction(ButtonInteraction),
-            Save,
+            Button(ButtonEvent<Action>),
         }
 
         let runtime = MotionRuntime::new();
@@ -197,15 +234,12 @@ mod tests {
         let button = AnimatedButton::primary("Save");
         let view = button
             .view(&runtime, &context)
-            .on_interaction(Message::Interaction)
-            .on_press(Message::Save);
+            .on_press(Action::Save)
+            .on_event(Message::Button);
         let _element: Element<'_, Message> = view.into();
 
-        let Message::Interaction(interaction) = Message::Interaction(ButtonInteraction::HoverEnter)
-        else {
-            unreachable!("constructed as an interaction message");
-        };
-        assert_eq!(interaction, ButtonInteraction::HoverEnter);
+        let Message::Button(event) = Message::Button(ButtonEvent::Pressed(Action::Save));
+        assert_eq!(event, ButtonEvent::Pressed(Action::Save));
     }
 
     #[test]
