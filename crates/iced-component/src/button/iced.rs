@@ -11,12 +11,56 @@ use crate::{MotionError, MotionRuntime};
 /// Iced view builder for [`AnimatedButton`].
 pub struct AnimatedButtonView<'a, Message, Action = ()> {
     snapshot: AnimatedButtonSnapshot,
-    label: &'a str,
-    on_event: Option<Box<dyn Fn(ButtonEvent<Action>) -> Message + 'a>>,
-    on_press: Option<Action>,
+    content: Element<'a, Message>,
+    events: ButtonViewEvents<'a, Message, Action>,
     padding: [f32; 2],
     width: Option<Length>,
     height: Option<Length>,
+}
+
+struct ButtonViewEvents<'a, Message, Action = ()> {
+    on_event: Option<Box<dyn Fn(ButtonEvent<Action>) -> Message + 'a>>,
+    on_press: Option<Action>,
+}
+
+impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
+    fn new() -> Self {
+        Self {
+            on_event: None,
+            on_press: None,
+        }
+    }
+
+    fn map_event(mut self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
+        self.on_event = Some(Box::new(mapper));
+        self
+    }
+
+    fn on_press<NextAction>(action: NextAction) -> ButtonViewEvents<'a, Message, NextAction> {
+        ButtonViewEvents {
+            on_event: None,
+            on_press: Some(action),
+        }
+    }
+
+    fn on_press_event<NextAction>(
+        action: NextAction,
+        mapper: impl Fn(ButtonEvent<NextAction>) -> Message + 'a,
+    ) -> ButtonViewEvents<'a, Message, NextAction> {
+        ButtonViewEvents {
+            on_event: Some(Box::new(mapper)),
+            on_press: Some(action),
+        }
+    }
+
+    fn on_press_maybe<NextAction>(
+        action: Option<NextAction>,
+    ) -> ButtonViewEvents<'a, Message, NextAction> {
+        ButtonViewEvents {
+            on_event: None,
+            on_press: action,
+        }
+    }
 }
 
 impl AnimatedButton {
@@ -45,9 +89,8 @@ impl AnimatedButton {
     {
         Ok(AnimatedButtonView {
             snapshot: self.snapshot(runtime, context)?,
-            label: self.label(),
-            on_event: None,
-            on_press: None,
+            content: text(self.label()).into(),
+            events: ButtonViewEvents::new(),
             padding: [8.0, 14.0],
             width: None,
             height: None,
@@ -59,7 +102,7 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
     /// Maps button events into application messages.
     #[must_use]
     pub fn on_event(mut self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
-        self.on_event = Some(Box::new(mapper));
+        self.events = self.events.map_event(mapper);
         self
     }
 
@@ -69,13 +112,20 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
         self.on_event(mapper)
     }
 
+    /// Replaces the default label with custom Iced content.
+    #[must_use]
+    pub fn content(mut self, content: impl Into<Element<'a, Message>>) -> Self {
+        self.content = content.into();
+        self
+    }
+
     /// Maps internal button interactions into application messages.
     #[must_use]
     pub fn on_interaction(mut self, mapper: impl Fn(ButtonInteraction) -> Message + 'a) -> Self {
-        self.on_event = Some(Box::new(move |event| match event {
+        self.events = self.events.map_event(move |event| match event {
             ButtonEvent::Interaction(interaction) => mapper(interaction),
             ButtonEvent::Pressed(_) => mapper(ButtonInteraction::PressUp),
-        }));
+        });
         self
     }
 
@@ -90,9 +140,8 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
     ) -> AnimatedButtonView<'a, Message, NextAction> {
         AnimatedButtonView {
             snapshot: self.snapshot,
-            label: self.label,
-            on_event: None,
-            on_press: Some(action),
+            content: self.content,
+            events: ButtonViewEvents::<Message, Action>::on_press(action),
             padding: self.padding,
             width: self.width,
             height: self.height,
@@ -108,9 +157,8 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
     ) -> AnimatedButtonView<'a, Message, NextAction> {
         AnimatedButtonView {
             snapshot: self.snapshot,
-            label: self.label,
-            on_event: Some(Box::new(mapper)),
-            on_press: Some(action),
+            content: self.content,
+            events: ButtonViewEvents::<Message, Action>::on_press_event(action, mapper),
             padding: self.padding,
             width: self.width,
             height: self.height,
@@ -125,9 +173,8 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
     ) -> AnimatedButtonView<'a, Message, NextAction> {
         AnimatedButtonView {
             snapshot: self.snapshot,
-            label: self.label,
-            on_event: None,
-            on_press: action,
+            content: self.content,
+            events: ButtonViewEvents::<Message, Action>::on_press_maybe(action),
             padding: self.padding,
             width: self.width,
             height: self.height,
@@ -178,7 +225,7 @@ where
     Action: 'a,
 {
     fn from(view: AnimatedButtonView<'a, Message, Action>) -> Self {
-        let mut widget = button(text(view.label))
+        let mut widget = button(view.content)
             .padding(view.padding)
             .style(move |_theme, _status| button_style(view.snapshot));
         if let Some(width) = view.width {
@@ -191,7 +238,7 @@ where
         if view.snapshot.disabled {
             widget.into()
         } else {
-            let Some(on_event) = view.on_event else {
+            let Some(on_event) = view.events.on_event else {
                 return widget.into();
             };
 
@@ -205,7 +252,7 @@ where
                 .on_press(on_event(ButtonEvent::Interaction(
                     ButtonInteraction::PressDown,
                 )))
-                .on_release(match view.on_press {
+                .on_release(match view.events.on_press {
                     Some(action) => on_event(ButtonEvent::Pressed(action)),
                     None => on_event(ButtonEvent::Interaction(ButtonInteraction::PressUp)),
                 })
@@ -259,6 +306,7 @@ fn color_with_alpha(color: Color, alpha_multiplier: f32) -> Color {
 mod tests {
     use aura_anim_core::MotionRuntime;
     use iced::Element;
+    use iced::widget::{container, text};
 
     use crate::{
         button::{AnimatedButton, ButtonEvent, ButtonInteraction},
@@ -355,6 +403,20 @@ mod tests {
             .width(34.0)
             .height(34.0)
             .square(34.0)
+            .on_press(())
+            .map_event(|_| ());
+        let _element: Element<'_, ()> = view.into();
+    }
+
+    #[test]
+    fn view_builder_accepts_custom_content() {
+        let runtime = MotionRuntime::new();
+        let context = ComponentContext::current();
+        let button = AnimatedButton::standard("Info").pill();
+
+        let view = button
+            .view(&runtime, &context)
+            .content(container(text("Info")))
             .on_press(())
             .map_event(|_| ());
         let _element: Element<'_, ()> = view.into();
