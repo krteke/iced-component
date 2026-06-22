@@ -2,8 +2,8 @@ use aura_anim_core::{MotionError, MotionRuntime, timing::Timing};
 
 use crate::{
     button::{
-        ButtonResolvedStyle, ButtonStyleState, ButtonVariant, flags::ButtonFlags,
-        motion::ButtonMotion,
+        ButtonAppearance, ButtonResolvedStyle, ButtonRole, ButtonStyleState, ButtonVariant,
+        flags::ButtonFlags, motion::ButtonMotion,
     },
     component::{ComponentContext, ComponentMotion},
     motion::{Easing, MotionSpeed, MotionTransition},
@@ -99,6 +99,50 @@ impl AnimatedButton {
         Self::new(label, ButtonVariant::DESTRUCTIVE)
     }
 
+    /// Returns this button with a different visual variant.
+    #[must_use]
+    pub fn with_variant(mut self, variant: ButtonVariant) -> Self {
+        self.variant = variant;
+        self
+    }
+
+    /// Returns this button with a different semantic role.
+    #[must_use]
+    pub fn with_role(mut self, role: ButtonRole) -> Self {
+        self.variant = self.variant.with_role(role);
+        self
+    }
+
+    /// Returns this button with a different visual appearance.
+    #[must_use]
+    pub fn with_appearance(mut self, appearance: ButtonAppearance) -> Self {
+        self.variant = self.variant.with_appearance(appearance);
+        self
+    }
+
+    /// Returns this button with minimal low-emphasis styling.
+    #[must_use]
+    pub fn flat(self) -> Self {
+        self.with_appearance(ButtonAppearance::Flat)
+    }
+
+    /// Returns this button with explicit raised styling.
+    #[must_use]
+    pub fn raised(self) -> Self {
+        self.with_appearance(ButtonAppearance::Raised)
+    }
+
+    /// Returns this button with disabled state preconfigured.
+    #[must_use]
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.flags.insert(ButtonFlags::DISABLED);
+        } else {
+            self.flags.remove(ButtonFlags::DISABLED);
+        }
+        self
+    }
+
     /// Registers the button motion handle in the application runtime.
     pub fn register(&mut self, runtime: &mut MotionRuntime, context: &ComponentContext) {
         if self.motion.is_registered() {
@@ -144,6 +188,15 @@ impl AnimatedButton {
         }
 
         self.motion.transition_to(self.target_motion(), runtime)
+    }
+
+    /// Enables or disables this button and updates its motion target.
+    pub fn set_disabled(
+        &mut self,
+        disabled: bool,
+        runtime: &mut MotionRuntime,
+    ) -> Result<bool, MotionError> {
+        self.update(ButtonInteraction::SetDisabled(disabled), runtime)
     }
 
     /// Applies a button event and returns its application action, if any.
@@ -254,7 +307,7 @@ mod tests {
     use float_cmp::assert_approx_eq;
 
     use crate::{
-        button::{ButtonStyleState, ButtonVariant},
+        button::{ButtonAppearance, ButtonRole, ButtonStyleState, ButtonVariant},
         component::ComponentContext,
     };
 
@@ -302,6 +355,25 @@ mod tests {
     }
 
     #[test]
+    fn builders_update_role_and_appearance() {
+        let button = AnimatedButton::standard("Save")
+            .with_role(ButtonRole::Suggested)
+            .flat();
+
+        assert_eq!(
+            button.variant(),
+            ButtonVariant::SUGGESTED.with_appearance(ButtonAppearance::Flat)
+        );
+
+        let button = AnimatedButton::destructive("Delete").raised();
+
+        assert_eq!(
+            button.variant(),
+            ButtonVariant::DESTRUCTIVE.with_appearance(ButtonAppearance::Raised)
+        );
+    }
+
+    #[test]
     fn disabled_button_ignores_press_down() {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
@@ -319,6 +391,20 @@ mod tests {
         let motion = button.motion_value(&runtime).unwrap();
         assert_approx_eq!(f32, motion.scale, 1.0);
         assert_approx_eq!(f32, motion.bg_alpha, 0.45);
+    }
+
+    #[test]
+    fn set_disabled_updates_button_state() {
+        let mut runtime = MotionRuntime::new();
+        let mut button = AnimatedButton::standard("Save");
+
+        button.set_disabled(true, &mut runtime).unwrap();
+
+        let snapshot = button
+            .snapshot(&runtime, &ComponentContext::current())
+            .unwrap();
+        assert!(snapshot.disabled);
+        assert_eq!(snapshot.style_state, ButtonStyleState::Disabled);
     }
 
     #[test]

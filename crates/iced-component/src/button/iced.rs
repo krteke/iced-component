@@ -59,6 +59,12 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
         self
     }
 
+    /// Maps button events into application messages.
+    #[must_use]
+    pub fn map_event(self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
+        self.on_event(mapper)
+    }
+
     /// Maps internal button interactions into application messages.
     #[must_use]
     pub fn on_interaction(mut self, mapper: impl Fn(ButtonInteraction) -> Message + 'a) -> Self {
@@ -70,6 +76,9 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
     }
 
     /// Sets the application action emitted when the button is released.
+    ///
+    /// Pair this with [`AnimatedButtonView::map_event`] to route interaction
+    /// events back to the owning application state.
     #[must_use]
     pub fn on_press<NextAction>(
         self,
@@ -250,7 +259,8 @@ mod tests {
         let button = AnimatedButton::suggested("Save");
         let view = button
             .view(&runtime, &context)
-            .on_press_event(Action::Save, Message::Button);
+            .on_press(Action::Save)
+            .map_event(Message::Button);
         let _element: Element<'_, Message> = view.into();
 
         let Message::Button(event) = Message::Button(ButtonEvent::Pressed(Action::Save));

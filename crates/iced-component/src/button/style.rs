@@ -65,6 +65,13 @@ impl ButtonVariant {
         self.appearance = appearance;
         self
     }
+
+    /// Returns this variant with a different semantic role.
+    #[must_use]
+    pub const fn with_role(mut self, role: ButtonRole) -> Self {
+        self.role = role;
+        self
+    }
 }
 
 /// Visual state for resolving final button style.
@@ -101,13 +108,15 @@ impl ButtonResolvedStyle {
     /// Resolves final button style from generated theme tokens.
     #[must_use]
     pub fn from_theme(theme: &ThemePack, variant: ButtonVariant, state: ButtonStyleState) -> Self {
-        match variant.role {
+        let style = match variant.role {
             ButtonRole::Standard => Self::from_standard_tokens(&theme.button.standard, state),
             ButtonRole::Suggested => Self::from_suggested_tokens(&theme.button.suggested, state),
             ButtonRole::Destructive => {
                 Self::from_destructive_tokens(&theme.button.destructive, state)
             }
-        }
+        };
+
+        style.apply_appearance(variant.appearance)
     }
 
     /// Resolves final button style from a theme context.
@@ -168,6 +177,36 @@ impl ButtonResolvedStyle {
             shadow: tokens.shadow(),
         }
     }
+
+    fn apply_appearance(mut self, appearance: ButtonAppearance) -> Self {
+        match appearance {
+            ButtonAppearance::Flat => {
+                self.background = transparent(self.background);
+                self.border = transparent(self.border);
+                self.shadow = transparent_shadow(self.shadow);
+                self
+            }
+            ButtonAppearance::Default
+            | ButtonAppearance::Raised
+            | ButtonAppearance::Pill
+            | ButtonAppearance::Circular => self,
+        }
+    }
+}
+
+fn transparent(color: Color) -> Color {
+    Color::new_rgba(color.red(), color.green(), color.blue(), 0)
+}
+
+fn transparent_shadow(shadow: ShadowLayer) -> ShadowLayer {
+    ShadowLayer::new(
+        transparent(shadow.color()),
+        shadow.offset_x(),
+        shadow.offset_y(),
+        shadow.blur(),
+        shadow.spread(),
+    )
+    .expect("changing only shadow color alpha preserves a valid shadow")
 }
 
 trait ButtonTokens {
@@ -289,6 +328,29 @@ mod tests {
             ButtonVariant::SUGGESTED.with_appearance(ButtonAppearance::Pill),
             ButtonVariant::new(ButtonRole::Suggested, ButtonAppearance::Pill)
         );
+    }
+
+    #[test]
+    fn flat_appearance_removes_background_border_and_shadow() {
+        let theme = ThemePack::adwaita();
+        let variant = ButtonVariant::SUGGESTED.with_appearance(ButtonAppearance::Flat);
+        let style = ButtonResolvedStyle::from_theme(&theme, variant, ButtonStyleState::Idle);
+
+        assert_eq!(style.foreground, theme.button.suggested.fg);
+        assert_eq!(style.background.alpha(), 0);
+        assert_eq!(style.border.alpha(), 0);
+        assert_eq!(style.shadow.color().alpha(), 0);
+    }
+
+    #[test]
+    fn raised_appearance_keeps_role_tokens() {
+        let theme = ThemePack::adwaita();
+        let variant = ButtonVariant::SUGGESTED.with_appearance(ButtonAppearance::Raised);
+        let style = ButtonResolvedStyle::from_theme(&theme, variant, ButtonStyleState::Idle);
+
+        assert_eq!(style.background, theme.button.suggested.bg);
+        assert_eq!(style.border, theme.button.suggested.border);
+        assert_eq!(style.shadow, theme.button.suggested.shadow);
     }
 
     #[test]

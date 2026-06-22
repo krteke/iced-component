@@ -52,7 +52,7 @@ impl Demo {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current().with_motion_preferences(preferences);
         let mut save_button = AnimatedButton::suggested("Save");
-        let mut reset_button = AnimatedButton::standard("Reset");
+        let mut reset_button = AnimatedButton::standard("Reset").flat();
 
         save_button.register(&mut runtime, &context);
         reset_button.register(&mut runtime, &context);
@@ -124,11 +124,13 @@ fn view(state: &Demo) -> Element<'_, Message> {
     let save = state
         .save_button
         .view(&state.runtime, &state.context)
-        .on_press_event(SaveAction::Save, Message::SaveButton);
+        .on_press(SaveAction::Save)
+        .map_event(Message::SaveButton);
     let reset = state
         .reset_button
         .view(&state.runtime, &state.context)
-        .on_press_event(ResetAction::Reset, Message::ResetButton);
+        .on_press(ResetAction::Reset)
+        .map_event(Message::ResetButton);
 
     let snapshot = state
         .save_button
