@@ -65,7 +65,7 @@ impl Demo {
         let context = ComponentContext::current().with_motion_preferences(preferences);
         let mut save_button = Button::suggested("Save 0");
         let mut reset_button = Button::standard("Reset").flat();
-        let mut motion_button = IconButton::suggested(IconSource::svg_bytes(MOTION_ICON));
+        let mut motion_button = IconButton::suggested(IconSource::svg_static(MOTION_ICON));
 
         save_button.register(&mut runtime, &context);
         reset_button.register(&mut runtime, &context);

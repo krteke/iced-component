@@ -3,7 +3,7 @@
 mod source;
 
 use aura_anim_core::{MotionError, MotionRuntime};
-use iced::Length;
+use iced::{Length, widget::svg};
 use spectrum_theme::iced::IcedColorAdapter;
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -36,16 +36,28 @@ pub struct IconButton {
 }
 
 impl IconButton {
-    /// Creates a standard SVG icon-style button from static bytes.
+    /// Creates a standard SVG icon-style button from in-memory bytes.
     #[must_use]
     pub fn svg_bytes(bytes: impl Into<Cow<'static, [u8]>>) -> Self {
         Self::standard(IconSource::svg_bytes(bytes))
+    }
+
+    /// Creates a standard SVG icon-style button from static bytes.
+    #[must_use]
+    pub fn svg_static(bytes: &'static [u8]) -> Self {
+        Self::standard(IconSource::svg_static(bytes))
     }
 
     /// Creates a standard SVG icon-style button from a filesystem path.
     #[must_use]
     pub fn svg_path(path: impl Into<PathBuf>) -> Self {
         Self::standard(IconSource::svg_path(path))
+    }
+
+    /// Creates a standard SVG icon-style button from an existing Iced SVG handle.
+    #[must_use]
+    pub fn svg_handle(handle: svg::Handle) -> Self {
+        Self::standard(IconSource::svg_handle(handle))
     }
 
     /// Creates a standard text-fallback icon-style button.
@@ -291,28 +303,15 @@ impl IconButton {
         Message: 'a,
     {
         match &self.icon {
-            IconSource::SvgPath(path) => {
-                iced::widget::svg(iced::widget::svg::Handle::from_path(path))
-                    .width(iced::Length::Fixed(size))
-                    .height(iced::Length::Fixed(size))
-                    .style(
-                        move |_theme: &iced::Theme, _status| iced::widget::svg::Style {
-                            color: Some(color),
-                        },
-                    )
-                    .into()
-            }
-            IconSource::SvgBytes(bytes) => {
-                iced::widget::svg(iced::widget::svg::Handle::from_memory(bytes.clone()))
-                    .width(iced::Length::Fixed(size))
-                    .height(iced::Length::Fixed(size))
-                    .style(
-                        move |_theme: &iced::Theme, _status| iced::widget::svg::Style {
-                            color: Some(color),
-                        },
-                    )
-                    .into()
-            }
+            IconSource::Svg(handle) => iced::widget::svg(handle.clone())
+                .width(iced::Length::Fixed(size))
+                .height(iced::Length::Fixed(size))
+                .style(
+                    move |_theme: &iced::Theme, _status| iced::widget::svg::Style {
+                        color: Some(color),
+                    },
+                )
+                .into(),
             IconSource::Text(text) => iced::widget::text(text).size(size).into(),
         }
     }
@@ -340,7 +339,7 @@ mod tests {
         );
 
         assert_eq!(icon.variant(), ButtonVariant::SUGGESTED);
-        assert!(matches!(icon.icon(), IconSource::SvgBytes(_)));
+        assert!(matches!(icon.icon(), IconSource::Svg(_)));
     }
 
     #[test]
@@ -380,6 +379,14 @@ mod tests {
         let icon = IconButton::svg_bytes(TEST_ICON).with_icon(IconSource::text("!"));
 
         assert_eq!(icon.icon().text_fallback(), Some("!"));
+    }
+
+    #[test]
+    fn icon_button_accepts_existing_svg_handle() {
+        let handle = iced::widget::svg::Handle::from_memory(TEST_ICON);
+        let icon = IconButton::svg_handle(handle.clone());
+
+        assert_eq!(icon.icon().svg_handle_ref(), Some(&handle));
     }
 
     #[test]

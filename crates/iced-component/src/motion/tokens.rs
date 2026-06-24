@@ -36,6 +36,8 @@ pub struct MotionTokens {
     pub slow: Duration,
     /// Duration for larger presence or layout transitions.
     pub slower: Duration,
+    /// Default transition for direct component interaction feedback.
+    pub interaction: MotionTransition,
     /// Physics-based motion presets.
     pub spring: MotionSpringTokens,
 }
@@ -96,6 +98,7 @@ impl Default for MotionTokens {
             normal: Duration::from_millis(200.0),
             slow: Duration::from_millis(260.0),
             slower: Duration::from_millis(320.0),
+            interaction: MotionTransition::standard(),
             spring: MotionSpringTokens::default(),
         }
     }
@@ -117,6 +120,16 @@ mod tests {
         let timing = MotionTokens::default().timing(transition, &preferences);
 
         assert_eq!(timing.duration(), Duration::from_millis(120.0));
+        assert_eq!(timing.easing(), Easing::EaseOut);
+    }
+
+    #[test]
+    fn default_interaction_transition_uses_normal_feedback_timing() {
+        let preferences = MotionPreferences::default();
+        let timing =
+            MotionTokens::default().timing(MotionTokens::default().interaction, &preferences);
+
+        assert_eq!(timing.duration(), Duration::from_millis(200.0));
         assert_eq!(timing.easing(), Easing::EaseOut);
     }
 

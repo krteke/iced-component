@@ -1,13 +1,11 @@
-use std::borrow::Cow;
-use std::path::PathBuf;
+use iced::widget::svg;
+use std::{borrow::Cow, path::PathBuf};
 
 /// Icon source rendered by icon-aware components.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IconSource {
-    /// SVG loaded from a filesystem path.
-    SvgPath(PathBuf),
-    /// SVG loaded from static in-memory bytes.
-    SvgBytes(Cow<'static, [u8]>),
+    /// SVG loaded through an Iced SVG handle.
+    Svg(svg::Handle),
     /// Explicit text fallback, useful for tests or icon fonts.
     Text(String),
 }
@@ -16,48 +14,34 @@ impl IconSource {
     /// Creates an SVG icon source from a filesystem path.
     #[must_use]
     pub fn svg_path(path: impl Into<PathBuf>) -> Self {
-        Self::SvgPath(path.into())
+        Self::Svg(svg::Handle::from_path(path))
     }
 
     /// Creates an SVG icon source from static in-memory bytes.
-    ///
-    /// If the bytes are owned, they will be leaked.
-    /// Input `&'static [u8]` -> `Cow::Borrowed`.
-    /// Input `Vec<u8>` -> `Cow::Owned` -> leaked -> `Cow::Borrowed`
+    #[must_use]
+    pub fn svg_static(bytes: &'static [u8]) -> Self {
+        Self::Svg(svg::Handle::from_memory(bytes))
+    }
+
+    /// Creates an SVG icon source from in-memory bytes.
     #[must_use]
     pub fn svg_bytes(bytes: impl Into<Cow<'static, [u8]>>) -> Self {
-        let bytes = bytes.into();
+        Self::Svg(svg::Handle::from_memory(bytes))
+    }
 
-        match bytes {
-            Cow::Borrowed(_) => Self::SvgBytes(bytes),
-            Cow::Owned(bytes) => {
-                let leaked = Box::leak(bytes.into());
-                Self::SvgBytes(Cow::Borrowed(leaked))
-            }
+    /// Creates an SVG icon source from an existing Iced SVG handle.
+    #[must_use]
+    pub fn svg_handle(handle: svg::Handle) -> Self {
+        Self::Svg(handle)
+    }
+
+    /// Returns the SVG handle when this source is SVG-backed.
+    #[must_use]
+    pub const fn svg_handle_ref(&self) -> Option<&svg::Handle> {
+        match self {
+            Self::Svg(handle) => Some(handle),
+            Self::Text(_) => None,
         }
-    }
-
-    /// Creates an SVG icon source from static in-memory bytes.
-    #[must_use]
-    pub fn from_static(bytes: &'static [u8]) -> Self {
-        Self::SvgBytes(Cow::Borrowed(bytes))
-    }
-
-    /// Creates an SVG icon source from a `Vec` of bytes.
-    ///
-    /// The bytes will be leaked.
-    #[must_use]
-    pub fn from_vec_leak(bytes: Vec<u8>) -> Self {
-        let leaked = Box::leak(bytes.into());
-        Self::SvgBytes(Cow::Borrowed(leaked))
-    }
-
-    /// Creates an SVG icon source from a `Vec` of bytes.
-    ///
-    /// However, using it may cause performance issues in [`crate::button::IconButton::view`].
-    #[must_use]
-    pub fn from_vec(bytes: Vec<u8>) -> Self {
-        Self::SvgBytes(Cow::Owned(bytes))
     }
 
     /// Creates an explicit text fallback icon source.
@@ -71,8 +55,14 @@ impl IconSource {
     pub fn text_fallback(&self) -> Option<&str> {
         match self {
             Self::Text(text) => Some(text),
-            Self::SvgPath(_) | Self::SvgBytes(_) => None,
+            Self::Svg(_) => None,
         }
+    }
+}
+
+impl From<svg::Handle> for IconSource {
+    fn from(handle: svg::Handle) -> Self {
+        Self::svg_handle(handle)
     }
 }
 
@@ -83,11 +73,13 @@ mod tests {
     const TEST_ICON: &[u8] = br#"<svg viewBox="0 0 16 16"></svg>"#;
 
     #[test]
-    fn svg_bytes_preserves_source_kind() {
-        assert!(matches!(
-            IconSource::svg_bytes(TEST_ICON),
-            IconSource::SvgBytes(_)
-        ));
+    fn svg_bytes_create_svg_handle() {
+        assert!(IconSource::svg_static(TEST_ICON).svg_handle_ref().is_some());
+        assert!(
+            IconSource::svg_bytes(TEST_ICON.to_vec())
+                .svg_handle_ref()
+                .is_some()
+        );
     }
 
     #[test]

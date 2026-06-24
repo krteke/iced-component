@@ -11,12 +11,11 @@ mod tests;
 mod view;
 
 use aura_anim_core::{MotionError, MotionRuntime, timing::Timing};
-use iced::{Length, animation::Easing};
+use iced::Length;
 
 use crate::{
     button::state::ButtonState,
     component::{ComponentContext, ComponentMotion},
-    motion::{MotionSpeed, MotionTransition},
 };
 
 pub use animated::{ButtonEvent, ButtonInteraction, ButtonSnapshot};
@@ -222,10 +221,8 @@ impl Button {
             return;
         }
 
-        let timing = context.motion_tokens().timing(
-            MotionTransition::new(MotionSpeed::Normal, Easing::EaseOut),
-            context.motion_preferences(),
-        );
+        let motion_tokens = context.motion_tokens();
+        let timing = motion_tokens.timing(motion_tokens.interaction, context.motion_preferences());
         self.motion = ComponentMotion::new(self.target_motion(), timing);
         let _ = self.motion.register(runtime);
     }

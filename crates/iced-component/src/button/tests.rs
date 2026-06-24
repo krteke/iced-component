@@ -4,6 +4,7 @@ use float_cmp::assert_approx_eq;
 use crate::{
     button::{Button, ButtonContent, ButtonRole, ButtonStyleState, ButtonVariant},
     component::ComponentContext,
+    motion::{MotionSpeed, MotionTokens, MotionTransition},
 };
 
 use super::{ButtonEvent, ButtonInteraction, ButtonMotion};
@@ -47,6 +48,25 @@ fn registered_hover_transitions_runtime_motion() {
     assert_eq!(runtime.motion_count(), 1);
     assert_approx_eq!(f32, button.motion_value(&runtime).unwrap().shadow_y, 1.2);
     assert_eq!(button.variant(), ButtonVariant::SUGGESTED);
+}
+
+#[test]
+fn register_uses_context_interaction_motion_token() {
+    let mut runtime = MotionRuntime::new();
+    let context = ComponentContext::current().with_motion_tokens(MotionTokens {
+        interaction: MotionTransition::new(MotionSpeed::Fast, iced::animation::Easing::Linear),
+        fast: Duration::from_millis(40.0),
+        ..MotionTokens::default()
+    });
+    let mut button = Button::suggested("Save");
+
+    button.register(&mut runtime, &context);
+    button
+        .update(ButtonInteraction::HoverEnter, &mut runtime)
+        .unwrap();
+    runtime.tick(Duration::from_millis(40.0));
+
+    assert_approx_eq!(f32, button.motion_value(&runtime).unwrap().shadow_y, 1.2);
 }
 
 #[test]

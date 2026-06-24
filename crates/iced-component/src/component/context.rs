@@ -123,6 +123,7 @@ mod tests {
             normal: Duration::from_millis(80.0),
             slow: Duration::from_millis(120.0),
             slower: Duration::from_millis(160.0),
+            interaction: MotionTokens::default().interaction,
             spring: MotionSpringTokens::default(),
         };
 

@@ -37,11 +37,6 @@ impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
         }
     }
 
-    fn map_event(mut self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
-        self.on_event = Some(Box::new(mapper));
-        self
-    }
-
     fn on_press_event<NextAction>(
         action: NextAction,
         mapper: impl Fn(ButtonEvent<NextAction>) -> Message + 'a,
@@ -49,15 +44,6 @@ impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
         ButtonViewEvents {
             on_event: Some(Box::new(mapper)),
             on_press: Some(action),
-        }
-    }
-
-    fn on_press_maybe<NextAction>(
-        action: Option<NextAction>,
-    ) -> ButtonViewEvents<'a, Message, NextAction> {
-        ButtonViewEvents {
-            on_event: None,
-            on_press: action,
         }
     }
 }
@@ -113,16 +99,6 @@ where
 }
 
 impl<'a, Message: 'a, Action> ButtonView<'a, Message, Action> {
-    /// Maps internal button interactions into application messages.
-    #[must_use]
-    pub fn on_interaction(mut self, mapper: impl Fn(ButtonInteraction) -> Message + 'a) -> Self {
-        self.events = self.events.map_event(move |event| match event {
-            ButtonEvent::Interaction(interaction) => mapper(interaction),
-            ButtonEvent::Pressed(_) => mapper(ButtonInteraction::PressUp),
-        });
-        self
-    }
-
     /// Sets the release action and maps all button events into application messages.
     #[must_use]
     pub fn connect<NextAction>(
@@ -134,20 +110,6 @@ impl<'a, Message: 'a, Action> ButtonView<'a, Message, Action> {
             snapshot: self.snapshot,
             content: self.content,
             events: ButtonViewEvents::<Message, Action>::on_press_event(action, mapper),
-            layout: self.layout,
-        }
-    }
-
-    /// Sets the application action emitted when the button is released, if any.
-    #[must_use]
-    pub fn on_press_maybe<NextAction>(
-        self,
-        action: Option<NextAction>,
-    ) -> ButtonView<'a, Message, NextAction> {
-        ButtonView {
-            snapshot: self.snapshot,
-            content: self.content,
-            events: ButtonViewEvents::<Message, Action>::on_press_maybe(action),
             layout: self.layout,
         }
     }
