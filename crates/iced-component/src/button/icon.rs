@@ -12,7 +12,7 @@ pub use source::IconSource;
 
 use crate::{
     button::{
-        Button, ButtonEvent, ButtonInteraction, ButtonSnapshot, ButtonVariant,
+        Button, ButtonEvent, ButtonInteraction, ButtonSnapshot, ButtonVariant, ButtonView,
         view::ResolvedButtonLayout,
     },
     component::ComponentContext,
@@ -255,7 +255,7 @@ impl IconButton {
         &'a self,
         runtime: &MotionRuntime,
         context: &ComponentContext,
-    ) -> crate::button::ButtonView<'a, Message>
+    ) -> ButtonView<'a, Message>
     where
         Message: Clone + 'a,
     {
@@ -264,36 +264,32 @@ impl IconButton {
             IconButtonSize::Default => metrics.size.value(),
             IconButtonSize::Fixed(size) => size,
         };
-        let icon = self.icon_element(runtime, context, metrics.icon_size.value());
+        let snapshot = self
+            .button
+            .snapshot(runtime, context)
+            .expect("button motion handle belongs to the provided runtime");
+        let icon = self.icon_element(metrics.icon_size.value(), snapshot.style.foreground.color());
 
-        self.button
-            .view(runtime, context)
-            .content(icon)
-            .with_layout(ResolvedButtonLayout {
+        ButtonView::from_parts(
+            snapshot,
+            icon,
+            ResolvedButtonLayout {
                 padding: [0.0, 0.0],
                 width: Some(Length::Fixed(size)),
                 height: Some(Length::Fixed(size)),
                 center_content: true,
-            })
+            },
+        )
     }
 
     fn icon_element<'a, Message>(
         &'a self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
         size: f32,
+        color: iced::Color,
     ) -> iced::Element<'a, Message>
     where
         Message: 'a,
     {
-        let color = self
-            .button
-            .snapshot(runtime, context)
-            .expect("button motion handle belongs to the provided runtime")
-            .style
-            .foreground
-            .color();
-
         match &self.icon {
             IconSource::SvgPath(path) => {
                 iced::widget::svg(iced::widget::svg::Handle::from_path(path))
@@ -394,7 +390,7 @@ mod tests {
         let context = ComponentContext::current();
         let icon = IconButton::svg_bytes(TEST_ICON);
 
-        let view = icon.view(&runtime, &context).on_press(()).map_event(|_| ());
+        let view = icon.view(&runtime, &context).connect((), |_| ());
         let _element: Element<'_, ()> = view.into();
     }
 }

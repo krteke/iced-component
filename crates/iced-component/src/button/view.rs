@@ -42,13 +42,6 @@ impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
         self
     }
 
-    fn on_press<NextAction>(action: NextAction) -> ButtonViewEvents<'a, Message, NextAction> {
-        ButtonViewEvents {
-            on_event: None,
-            on_press: Some(action),
-        }
-    }
-
     fn on_press_event<NextAction>(
         action: NextAction,
         mapper: impl Fn(ButtonEvent<NextAction>) -> Message + 'a,
@@ -93,29 +86,33 @@ impl Button {
     where
         Message: Clone + 'a,
     {
-        Ok(ButtonView {
-            snapshot: self.snapshot(runtime, context)?,
-            content: button_content(self),
+        Ok(ButtonView::from_parts(
+            self.snapshot(runtime, context)?,
+            button_content(self),
+            self.layout.resolve(context),
+        ))
+    }
+}
+
+impl<'a, Message> ButtonView<'a, Message>
+where
+    Message: 'a,
+{
+    pub(crate) fn from_parts(
+        snapshot: ButtonSnapshot,
+        content: Element<'a, Message>,
+        layout: ResolvedButtonLayout,
+    ) -> Self {
+        Self {
+            snapshot,
+            content,
             events: ButtonViewEvents::new(),
-            layout: self.layout.resolve(context),
-        })
+            layout,
+        }
     }
 }
 
 impl<'a, Message: 'a, Action> ButtonView<'a, Message, Action> {
-    /// Maps button events into application messages.
-    #[must_use]
-    pub fn on_event(mut self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
-        self.events = self.events.map_event(mapper);
-        self
-    }
-
-    /// Maps button events into application messages.
-    #[must_use]
-    pub fn map_event(self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
-        self.on_event(mapper)
-    }
-
     /// Maps internal button interactions into application messages.
     #[must_use]
     pub fn on_interaction(mut self, mapper: impl Fn(ButtonInteraction) -> Message + 'a) -> Self {
@@ -126,23 +123,9 @@ impl<'a, Message: 'a, Action> ButtonView<'a, Message, Action> {
         self
     }
 
-    /// Sets the application action emitted when the button is released.
-    ///
-    /// Pair this with [`ButtonView::map_event`] to route interaction
-    /// events back to the owning application state.
-    #[must_use]
-    pub fn on_press<NextAction>(self, action: NextAction) -> ButtonView<'a, Message, NextAction> {
-        ButtonView {
-            snapshot: self.snapshot,
-            content: self.content,
-            events: ButtonViewEvents::<Message, Action>::on_press(action),
-            layout: self.layout,
-        }
-    }
-
     /// Sets the release action and maps all button events into application messages.
     #[must_use]
-    pub fn on_press_event<NextAction>(
+    pub fn connect<NextAction>(
         self,
         action: NextAction,
         mapper: impl Fn(ButtonEvent<NextAction>) -> Message + 'a,
@@ -167,18 +150,6 @@ impl<'a, Message: 'a, Action> ButtonView<'a, Message, Action> {
             events: ButtonViewEvents::<Message, Action>::on_press_maybe(action),
             layout: self.layout,
         }
-    }
-
-    /// Sets the content of the button.
-    #[must_use]
-    pub fn content(mut self, content: impl Into<Element<'a, Message>>) -> Self {
-        self.content = content.into();
-        self
-    }
-
-    pub(crate) fn with_layout(mut self, layout: ResolvedButtonLayout) -> Self {
-        self.layout = layout;
-        self
     }
 }
 
@@ -285,7 +256,6 @@ fn color_with_alpha(color: Color, alpha_multiplier: f32) -> Color {
 mod tests {
     use aura_anim_core::MotionRuntime;
     use iced::Element;
-    use iced::widget::{container, text};
 
     use crate::{
         button::{Button, ButtonEvent, ButtonInteraction},
@@ -332,8 +302,7 @@ mod tests {
         let button = Button::suggested("Save");
         let view = button
             .view(&runtime, &context)
-            .on_press(Action::Save)
-            .map_event(Message::Button);
+            .connect(Action::Save, Message::Button);
         let _element: Element<'_, Message> = view.into();
 
         let Message::Button(event) = Message::Button(ButtonEvent::Pressed(Action::Save));
@@ -368,19 +337,5 @@ mod tests {
 
         let view = button.view(&runtime, &context);
         let _element: Element<'_, Message> = view.into();
-    }
-
-    #[test]
-    fn view_builder_accepts_custom_element_content() {
-        let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
-        let button = Button::standard("Info").pill();
-
-        let view = button
-            .view(&runtime, &context)
-            .content(container(text("Info")))
-            .on_press(())
-            .map_event(|_| ());
-        let _element: Element<'_, ()> = view.into();
     }
 }

@@ -62,4 +62,28 @@ impl ButtonLayout {
             center_content: self.center_content,
         }
     }
+
+    /// Returns the padding of the button.
+    #[must_use]
+    pub fn padding(&self) -> Option<[f32; 2]> {
+        self.padding
+    }
+
+    /// Returns the width of the button.
+    #[must_use]
+    pub fn width(&self) -> Option<Length> {
+        self.width
+    }
+
+    /// Returns the height of the button.
+    #[must_use]
+    pub fn height(&self) -> Option<Length> {
+        self.height
+    }
+
+    /// Returns whether the content should be centered.
+    #[must_use]
+    pub fn center_content(&self) -> bool {
+        self.center_content
+    }
 }

@@ -212,7 +212,7 @@ impl Button {
     /// Returns this button with disabled state preconfigured.
     #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.state.set_disabled(disabled);
+        self.state.apply(ButtonInteraction::SetDisabled(disabled));
         self
     }
 
@@ -236,16 +236,7 @@ impl Button {
         interaction: ButtonInteraction,
         runtime: &mut MotionRuntime,
     ) -> Result<bool, MotionError> {
-        match interaction {
-            ButtonInteraction::HoverEnter => self.state.hover_enter(),
-            ButtonInteraction::HoverExit => self.state.hover_exit(),
-            ButtonInteraction::PressDown => self.state.press_down(),
-            ButtonInteraction::PressUp => self.state.press_up(),
-            ButtonInteraction::Focus => self.state.focus(),
-            ButtonInteraction::Blur => self.state.blur(),
-            ButtonInteraction::SetDisabled(disabled) => self.state.set_disabled(disabled),
-        }
-
+        self.state.apply(interaction);
         self.motion.transition_to(self.target_motion(), runtime)
     }
 
@@ -264,17 +255,9 @@ impl Button {
         event: ButtonEvent<Action>,
         runtime: &mut MotionRuntime,
     ) -> Result<Option<Action>, MotionError> {
-        match event {
-            ButtonEvent::Interaction(interaction) => {
-                self.update(interaction, runtime)?;
-                Ok(None)
-            }
-            ButtonEvent::Pressed(action) => {
-                let disabled = self.state.is_disabled();
-                self.update(ButtonInteraction::PressUp, runtime)?;
-                Ok((!disabled).then_some(action))
-            }
-        }
+        let action = self.state.apply_event(event);
+        self.motion.transition_to(self.target_motion(), runtime)?;
+        Ok(action)
     }
 
     /// Applies a button event and invokes `on_action` when release yields an action.

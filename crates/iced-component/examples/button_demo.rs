@@ -97,7 +97,12 @@ impl Demo {
                         self.clicks += 1;
                     },
                 );
+                let handled = matches!(result, Ok(true));
                 record_motion_result(self, result);
+                if handled {
+                    self.save_button
+                        .set_content(format!("Save {}", self.clicks));
+                }
             }
             Message::ResetButton(event) => {
                 let result = self.reset_button.update_event_with(
@@ -107,7 +112,11 @@ impl Demo {
                         self.clicks = 0;
                     },
                 );
+                let handled = matches!(result, Ok(true));
                 record_motion_result(self, result);
+                if handled {
+                    self.save_button.set_content("Save 0");
+                }
             }
             Message::MotionButton(event) => {
                 let result = self.motion_button.update_event_with(
@@ -129,19 +138,15 @@ impl Demo {
         let save = self
             .save_button
             .view(&self.runtime, &self.context)
-            .content(text(format!("Save {}", self.clicks)))
-            .on_press(SaveAction::Save)
-            .map_event(Message::SaveButton);
+            .connect(SaveAction::Save, Message::SaveButton);
         let reset = self
             .reset_button
             .view(&self.runtime, &self.context)
-            .on_press(ResetAction::Reset)
-            .map_event(Message::ResetButton);
+            .connect(ResetAction::Reset, Message::ResetButton);
         let motion = self
             .motion_button
             .view(&self.runtime, &self.context)
-            .on_press(MotionAction::Toggle)
-            .map_event(Message::MotionButton);
+            .connect(MotionAction::Toggle, Message::MotionButton);
 
         let snapshot = self
             .save_button
