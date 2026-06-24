@@ -9,8 +9,8 @@ repository.workspace = true
 
 [dependencies]
 aura-anim-core.workspace = true
-iced = { workspace = true, optional = true }
-spectrum-theme = { workspace = true, features = ["macros"] }
+iced = { workspace = true, features = ["svg"] }
+spectrum-theme = { workspace = true, features = ["macros", "iced"] }
 spectrum-schema.workspace = true
 spectrum-resolver.workspace = true
 toml.workspace = true
@@ -19,13 +19,9 @@ thiserror.workspace = true
 [dev-dependencies]
 float-cmp.workspace = true
 
-[features]
-iced = ["dep:iced", "iced/svg", "spectrum-theme/iced"]
-
 [[example]]
 name = "button_demo"
 path = "examples/button_demo.rs"
-required-features = ["iced"]
 
 [lints]
 workspace = true

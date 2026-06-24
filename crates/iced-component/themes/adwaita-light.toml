@@ -155,11 +155,7 @@ description = "Muted Adwaita-like baseline for Aura Iced components."
 "control.border.width" = "1px"
 "control.button.padding_x" = "14px"
 "control.button.padding_y" = "8px"
-"control.button.compact_padding_x" = "8px"
-"control.button.compact_padding_y" = "4px"
-"control.button.min_height" = "34px"
 "control.icon_button.size" = "40px"
-"control.icon_button.compact_size" = "34px"
 "control.icon_button.icon_size" = "16px"
 
 [[shadows]]

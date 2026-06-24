@@ -1,72 +1,41 @@
+//! Icon-style animated button component.
+
+mod source;
+
 use aura_anim_core::{MotionError, MotionRuntime};
+use iced::Length;
+use spectrum_theme::iced::IcedColorAdapter;
 use std::borrow::Cow;
 use std::path::PathBuf;
 
-use super::{
-    AnimatedButton, AnimatedButtonSnapshot, ButtonEvent, ButtonInteraction, ButtonVariant,
+pub use source::IconSource;
+
+use crate::{
+    button::{
+        Button, ButtonEvent, ButtonInteraction, ButtonSnapshot, ButtonVariant,
+        view::ResolvedButtonLayout,
+    },
+    component::ComponentContext,
 };
-use crate::component::ComponentContext;
-
-/// Icon source rendered inside an [`AnimatedIconButton`].
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum IconSource {
-    /// SVG loaded from a filesystem path.
-    SvgPath(PathBuf),
-    /// SVG loaded from static in-memory bytes.
-    SvgBytes(Cow<'static, [u8]>),
-    /// Explicit text fallback, useful for tests or icon fonts.
-    Text(String),
-}
-
-impl IconSource {
-    /// Creates an SVG icon source from a filesystem path.
-    #[must_use]
-    pub fn svg_path(path: impl Into<PathBuf>) -> Self {
-        Self::SvgPath(path.into())
-    }
-
-    /// Creates an SVG icon source from static in-memory bytes.
-    #[must_use]
-    pub fn svg_bytes(bytes: impl Into<Cow<'static, [u8]>>) -> Self {
-        Self::SvgBytes(bytes.into())
-    }
-
-    /// Creates an explicit text fallback icon source.
-    #[must_use]
-    pub fn text(text: impl Into<String>) -> Self {
-        Self::Text(text.into())
-    }
-
-    /// Returns fallback text when this source is text-backed.
-    #[must_use]
-    pub fn text_fallback(&self) -> Option<&str> {
-        match self {
-            Self::Text(text) => Some(text),
-            Self::SvgPath(_) | Self::SvgBytes(_) => None,
-        }
-    }
-}
 
 /// Icon button control size.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum IconButtonSize {
     /// Theme default icon button size.
     Default,
-    /// Theme compact icon button size.
-    Compact,
     /// Explicit fixed square size in pixels.
     Fixed(f32),
 }
 
-/// Icon-style animated button backed by [`AnimatedButton`].
+/// Icon-style animated button backed by [`Button`].
 #[derive(Debug)]
-pub struct AnimatedIconButton {
-    button: AnimatedButton,
+pub struct IconButton {
+    button: Button,
     icon: IconSource,
     size: IconButtonSize,
 }
 
-impl AnimatedIconButton {
+impl IconButton {
     /// Creates a standard SVG icon-style button from static bytes.
     #[must_use]
     pub fn svg_bytes(bytes: impl Into<Cow<'static, [u8]>>) -> Self {
@@ -94,24 +63,24 @@ impl AnimatedIconButton {
     /// Creates a standard icon-style button.
     #[must_use]
     pub fn standard(icon: impl Into<IconSource>) -> Self {
-        Self::from_button(icon, AnimatedButton::standard(""))
+        Self::from_button(icon, Button::empty(ButtonVariant::STANDARD))
     }
 
     /// Creates a suggested-action icon-style button.
     #[must_use]
     pub fn suggested(icon: impl Into<IconSource>) -> Self {
-        Self::from_button(icon, AnimatedButton::suggested(""))
+        Self::from_button(icon, Button::empty(ButtonVariant::SUGGESTED))
     }
 
     /// Creates a destructive-action icon-style button.
     #[must_use]
     pub fn destructive(icon: impl Into<IconSource>) -> Self {
-        Self::from_button(icon, AnimatedButton::destructive(""))
+        Self::from_button(icon, Button::empty(ButtonVariant::DESTRUCTIVE))
     }
 
     /// Wraps an existing animated button as an icon-style button.
     #[must_use]
-    pub fn from_button(icon: impl Into<IconSource>, button: AnimatedButton) -> Self {
+    pub fn from_button(icon: impl Into<IconSource>, button: Button) -> Self {
         Self {
             button,
             icon: icon.into(),
@@ -189,13 +158,6 @@ impl AnimatedIconButton {
         self
     }
 
-    /// Returns this icon button with compact control size.
-    #[must_use]
-    pub const fn compact(mut self) -> Self {
-        self.size = IconButtonSize::Compact;
-        self
-    }
-
     /// Returns this icon button with explicit square size in pixels.
     #[must_use]
     pub const fn size(mut self, size: f32) -> Self {
@@ -257,7 +219,7 @@ impl AnimatedIconButton {
         &self,
         runtime: &MotionRuntime,
         context: &ComponentContext,
-    ) -> Result<AnimatedButtonSnapshot, MotionError> {
+    ) -> Result<ButtonSnapshot, MotionError> {
         self.button.snapshot(runtime, context)
     }
 
@@ -281,68 +243,82 @@ impl AnimatedIconButton {
 
     /// Returns the inner animated button.
     #[must_use]
-    pub const fn as_button(&self) -> &AnimatedButton {
+    pub const fn as_button(&self) -> &Button {
         &self.button
     }
 }
 
-#[cfg(feature = "iced")]
-impl AnimatedIconButton {
+impl IconButton {
     /// Builds an Iced view for this icon button.
     #[must_use]
     pub fn view<'a, Message>(
         &'a self,
         runtime: &MotionRuntime,
         context: &ComponentContext,
-    ) -> super::AnimatedButtonView<'a, Message>
+    ) -> crate::button::ButtonView<'a, Message>
     where
         Message: Clone + 'a,
     {
-        use spectrum_theme::iced::IcedColorAdapter;
-
         let metrics = &context.theme().theme().control.icon_button;
         let size = match self.size {
             IconButtonSize::Default => metrics.size.value(),
-            IconButtonSize::Compact => metrics.compact_size.value(),
             IconButtonSize::Fixed(size) => size,
         };
-        let icon_size = metrics.icon_size.value();
-        let icon_color = self
+        let icon = self.icon_element(runtime, context, metrics.icon_size.value());
+
+        self.button
+            .view(runtime, context)
+            .content(icon)
+            .with_layout(ResolvedButtonLayout {
+                padding: [0.0, 0.0],
+                width: Some(Length::Fixed(size)),
+                height: Some(Length::Fixed(size)),
+                center_content: true,
+            })
+    }
+
+    fn icon_element<'a, Message>(
+        &'a self,
+        runtime: &MotionRuntime,
+        context: &ComponentContext,
+        size: f32,
+    ) -> iced::Element<'a, Message>
+    where
+        Message: 'a,
+    {
+        let color = self
+            .button
             .snapshot(runtime, context)
             .expect("button motion handle belongs to the provided runtime")
             .style
             .foreground
             .color();
-        let icon: iced::Element<'a, Message> = match &self.icon {
+
+        match &self.icon {
             IconSource::SvgPath(path) => {
-                iced::widget::svg(iced::widget::svg::Handle::from_path(path.clone()))
-                    .width(iced::Length::Fixed(icon_size))
-                    .height(iced::Length::Fixed(icon_size))
+                iced::widget::svg(iced::widget::svg::Handle::from_path(path))
+                    .width(iced::Length::Fixed(size))
+                    .height(iced::Length::Fixed(size))
                     .style(
                         move |_theme: &iced::Theme, _status| iced::widget::svg::Style {
-                            color: Some(icon_color),
+                            color: Some(color),
                         },
                     )
                     .into()
             }
             IconSource::SvgBytes(bytes) => {
                 iced::widget::svg(iced::widget::svg::Handle::from_memory(bytes.clone()))
-                    .width(iced::Length::Fixed(icon_size))
-                    .height(iced::Length::Fixed(icon_size))
+                    .width(iced::Length::Fixed(size))
+                    .height(iced::Length::Fixed(size))
                     .style(
                         move |_theme: &iced::Theme, _status| iced::widget::svg::Style {
-                            color: Some(icon_color),
+                            color: Some(color),
                         },
                     )
                     .into()
             }
-            IconSource::Text(text) => iced::widget::text(text.as_str()).size(icon_size).into(),
-        };
-
-        self.button
-            .view(runtime, context)
-            .element(icon)
-            .square(size)
+            IconSource::Text(text) => iced::widget::text(text).size(size).into(),
+        }
     }
 }
 
@@ -352,8 +328,8 @@ mod tests {
 
     use crate::{
         button::{
-            AnimatedButton, AnimatedIconButton, ButtonEvent, ButtonInteraction, ButtonShape,
-            ButtonStyleState, ButtonTreatment, ButtonVariant, IconButtonSize, IconSource,
+            Button, ButtonEvent, ButtonInteraction, ButtonStyleState, ButtonVariant,
+            icon::{IconButton, source::IconSource},
         },
         component::ComponentContext,
     };
@@ -362,9 +338,9 @@ mod tests {
 
     #[test]
     fn icon_button_wraps_button_without_forcing_shape() {
-        let icon = AnimatedIconButton::from_button(
+        let icon = IconButton::from_button(
             IconSource::svg_bytes(TEST_ICON),
-            AnimatedButton::suggested(""),
+            Button::empty(ButtonVariant::SUGGESTED),
         );
 
         assert_eq!(icon.variant(), ButtonVariant::SUGGESTED);
@@ -373,30 +349,16 @@ mod tests {
 
     #[test]
     fn standard_icon_button_defaults_to_filled_rounded() {
-        let icon = AnimatedIconButton::svg_bytes(TEST_ICON);
+        let icon = IconButton::svg_bytes(TEST_ICON);
 
         assert_eq!(icon.variant(), ButtonVariant::STANDARD);
-    }
-
-    #[test]
-    fn icon_button_exposes_role_treatment_shape_and_size_builders() {
-        let icon = AnimatedIconButton::svg_bytes(TEST_ICON)
-            .as_destructive()
-            .flat()
-            .circular()
-            .compact();
-
-        assert_eq!(icon.variant().role, crate::button::ButtonRole::Destructive);
-        assert_eq!(icon.variant().treatment, ButtonTreatment::Flat);
-        assert_eq!(icon.variant().shape, ButtonShape::Circular);
-        assert_eq!(icon.size_mode(), IconButtonSize::Compact);
     }
 
     #[test]
     fn icon_button_delegates_interaction_state() {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut icon = AnimatedIconButton::svg_bytes(TEST_ICON);
+        let mut icon = IconButton::svg_bytes(TEST_ICON);
 
         icon.update(ButtonInteraction::HoverEnter, &mut runtime)
             .unwrap();
@@ -408,7 +370,7 @@ mod tests {
     #[test]
     fn icon_button_delegates_press_events() {
         let mut runtime = MotionRuntime::new();
-        let mut icon = AnimatedIconButton::svg_bytes(TEST_ICON);
+        let mut icon = IconButton::svg_bytes(TEST_ICON);
 
         let action = icon
             .update_event(ButtonEvent::Pressed("open"), &mut runtime)
@@ -419,26 +381,18 @@ mod tests {
 
     #[test]
     fn icon_button_can_change_source() {
-        let icon = AnimatedIconButton::svg_bytes(TEST_ICON).with_icon(IconSource::text("!"));
+        let icon = IconButton::svg_bytes(TEST_ICON).with_icon(IconSource::text("!"));
 
         assert_eq!(icon.icon().text_fallback(), Some("!"));
     }
 
-    #[test]
-    fn text_icon_source_is_explicit_fallback() {
-        let icon = AnimatedIconButton::text("!");
-
-        assert_eq!(icon.icon().text_fallback(), Some("!"));
-    }
-
-    #[cfg(feature = "iced")]
     #[test]
     fn icon_button_builds_iced_view_from_shared_button_builder() {
         use iced::Element;
 
         let runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let icon = AnimatedIconButton::svg_bytes(TEST_ICON);
+        let icon = IconButton::svg_bytes(TEST_ICON);
 
         let view = icon.view(&runtime, &context).on_press(()).map_event(|_| ());
         let _element: Element<'_, ()> = view.into();

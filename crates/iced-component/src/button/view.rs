@@ -1,64 +1,27 @@
-//! Iced integration for animated buttons.
+//! View builder for [`Button`] using Iced.
 
 use iced::widget::{button, container, mouse_area, text};
 use iced::{Background, Border, Color, Element, Length, Shadow, Vector};
-use spectrum_theme::iced::{
-    IcedColorAdapter, IcedLengthAdapter, IcedRadiusAdapter, IcedShadowAdapter,
-};
-use std::borrow::Cow;
+use spectrum_theme::iced::{IcedColorAdapter, IcedRadiusAdapter, IcedShadowAdapter};
 
-use super::{AnimatedButton, AnimatedButtonSnapshot, ButtonEvent, ButtonInteraction};
+use super::{Button, ButtonEvent, ButtonInteraction, ButtonSnapshot};
 use crate::component::ComponentContext;
 use crate::{MotionError, MotionRuntime};
 
-/// Iced view builder for [`AnimatedButton`].
-pub struct AnimatedButtonView<'a, Message, Action = ()> {
-    snapshot: AnimatedButtonSnapshot,
+/// Iced view builder for [`Button`].
+pub struct ButtonView<'a, Message, Action = ()> {
+    snapshot: ButtonSnapshot,
     content: Element<'a, Message>,
     events: ButtonViewEvents<'a, Message, Action>,
-    padding: [f32; 2],
-    compact_padding: [f32; 2],
-    width: Option<Length>,
-    height: Option<Length>,
-    center_content: bool,
+    layout: ResolvedButtonLayout,
 }
 
-/// Content accepted by [`AnimatedButtonView`].
-pub enum ButtonContent<'a, Message> {
-    /// Text content rendered with Iced's text widget.
-    Text(Cow<'a, str>),
-    /// Fully custom Iced content.
-    Element(Element<'a, Message>),
-}
-
-impl<'a, Message> ButtonContent<'a, Message>
-where
-    Message: 'a,
-{
-    fn into_element(self) -> Element<'a, Message> {
-        match self {
-            Self::Text(content) => text(content).into(),
-            Self::Element(content) => content,
-        }
-    }
-}
-
-impl<'a, Message> From<&'a str> for ButtonContent<'a, Message> {
-    fn from(content: &'a str) -> Self {
-        Self::Text(Cow::Borrowed(content))
-    }
-}
-
-impl<Message> From<String> for ButtonContent<'_, Message> {
-    fn from(content: String) -> Self {
-        Self::Text(Cow::Owned(content))
-    }
-}
-
-impl<'a, Message> From<Element<'a, Message>> for ButtonContent<'a, Message> {
-    fn from(content: Element<'a, Message>) -> Self {
-        Self::Element(content)
-    }
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ResolvedButtonLayout {
+    pub(crate) padding: [f32; 2],
+    pub(crate) width: Option<Length>,
+    pub(crate) height: Option<Length>,
+    pub(crate) center_content: bool,
 }
 
 struct ButtonViewEvents<'a, Message, Action = ()> {
@@ -106,14 +69,14 @@ impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
     }
 }
 
-impl AnimatedButton {
+impl Button {
     /// Builds an Iced view for this button.
     #[must_use]
     pub fn view<'a, Message>(
         &'a self,
         runtime: &MotionRuntime,
         context: &ComponentContext,
-    ) -> AnimatedButtonView<'a, Message>
+    ) -> ButtonView<'a, Message>
     where
         Message: Clone + 'a,
     {
@@ -126,32 +89,20 @@ impl AnimatedButton {
         &'a self,
         runtime: &MotionRuntime,
         context: &ComponentContext,
-    ) -> Result<AnimatedButtonView<'a, Message>, MotionError>
+    ) -> Result<ButtonView<'a, Message>, MotionError>
     where
         Message: Clone + 'a,
     {
-        Ok(AnimatedButtonView {
+        Ok(ButtonView {
             snapshot: self.snapshot(runtime, context)?,
-            content: ButtonContent::from(self.label()).into_element(),
+            content: button_content(self),
             events: ButtonViewEvents::new(),
-            padding: button_padding(context),
-            compact_padding: button_compact_padding(context),
-            width: None,
-            height: Some(
-                context
-                    .theme()
-                    .theme()
-                    .control
-                    .button
-                    .min_height
-                    .length_px(),
-            ),
-            center_content: false,
+            layout: self.layout.resolve(context),
         })
     }
 }
 
-impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
+impl<'a, Message: 'a, Action> ButtonView<'a, Message, Action> {
     /// Maps button events into application messages.
     #[must_use]
     pub fn on_event(mut self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
@@ -163,23 +114,6 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
     #[must_use]
     pub fn map_event(self, mapper: impl Fn(ButtonEvent<Action>) -> Message + 'a) -> Self {
         self.on_event(mapper)
-    }
-
-    /// Replaces the default label with custom Iced content.
-    #[must_use]
-    pub fn content(mut self, content: impl Into<ButtonContent<'a, Message>>) -> Self
-    where
-        Message: 'a,
-    {
-        self.content = content.into().into_element();
-        self
-    }
-
-    /// Replaces the default label with custom Iced element content.
-    #[must_use]
-    pub fn element(mut self, content: impl Into<Element<'a, Message>>) -> Self {
-        self.content = content.into();
-        self
     }
 
     /// Maps internal button interactions into application messages.
@@ -194,22 +128,15 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
 
     /// Sets the application action emitted when the button is released.
     ///
-    /// Pair this with [`AnimatedButtonView::map_event`] to route interaction
+    /// Pair this with [`ButtonView::map_event`] to route interaction
     /// events back to the owning application state.
     #[must_use]
-    pub fn on_press<NextAction>(
-        self,
-        action: NextAction,
-    ) -> AnimatedButtonView<'a, Message, NextAction> {
-        AnimatedButtonView {
+    pub fn on_press<NextAction>(self, action: NextAction) -> ButtonView<'a, Message, NextAction> {
+        ButtonView {
             snapshot: self.snapshot,
             content: self.content,
             events: ButtonViewEvents::<Message, Action>::on_press(action),
-            padding: self.padding,
-            compact_padding: self.compact_padding,
-            width: self.width,
-            height: self.height,
-            center_content: self.center_content,
+            layout: self.layout,
         }
     }
 
@@ -219,16 +146,12 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
         self,
         action: NextAction,
         mapper: impl Fn(ButtonEvent<NextAction>) -> Message + 'a,
-    ) -> AnimatedButtonView<'a, Message, NextAction> {
-        AnimatedButtonView {
+    ) -> ButtonView<'a, Message, NextAction> {
+        ButtonView {
             snapshot: self.snapshot,
             content: self.content,
             events: ButtonViewEvents::<Message, Action>::on_press_event(action, mapper),
-            padding: self.padding,
-            compact_padding: self.compact_padding,
-            width: self.width,
-            height: self.height,
-            center_content: self.center_content,
+            layout: self.layout,
         }
     }
 
@@ -237,90 +160,57 @@ impl<'a, Message, Action> AnimatedButtonView<'a, Message, Action> {
     pub fn on_press_maybe<NextAction>(
         self,
         action: Option<NextAction>,
-    ) -> AnimatedButtonView<'a, Message, NextAction> {
-        AnimatedButtonView {
+    ) -> ButtonView<'a, Message, NextAction> {
+        ButtonView {
             snapshot: self.snapshot,
             content: self.content,
             events: ButtonViewEvents::<Message, Action>::on_press_maybe(action),
-            padding: self.padding,
-            compact_padding: self.compact_padding,
-            width: self.width,
-            height: self.height,
-            center_content: self.center_content,
+            layout: self.layout,
         }
     }
 
-    /// Sets horizontal and vertical padding.
+    /// Sets the content of the button.
     #[must_use]
-    pub const fn padding(mut self, padding: [f32; 2]) -> Self {
-        self.padding = padding;
+    pub fn content(mut self, content: impl Into<Element<'a, Message>>) -> Self {
+        self.content = content.into();
         self
     }
 
-    /// Uses compact button padding.
-    #[must_use]
-    pub fn compact(mut self) -> Self {
-        self.padding = self.compact_padding;
-        self
-    }
-
-    /// Sets the rendered button width.
-    #[must_use]
-    pub fn width(mut self, width: impl Into<Length>) -> Self {
-        self.width = Some(width.into());
-        self
-    }
-
-    /// Sets the rendered button height.
-    #[must_use]
-    pub fn height(mut self, height: impl Into<Length>) -> Self {
-        self.height = Some(height.into());
-        self
-    }
-
-    /// Sets equal width and height, useful for circular icon buttons.
-    #[must_use]
-    pub fn square(mut self, size: f32) -> Self {
-        self.width = Some(Length::Fixed(size));
-        self.height = Some(Length::Fixed(size));
-        self.padding = [0.0, 0.0];
-        self.center_content = true;
+    pub(crate) fn with_layout(mut self, layout: ResolvedButtonLayout) -> Self {
+        self.layout = layout;
         self
     }
 }
 
-fn button_padding(context: &ComponentContext) -> [f32; 2] {
-    let button = &context.theme().theme().control.button;
-    [button.padding_y.value(), button.padding_x.value()]
+fn button_content<'a, Message>(button: &'a Button) -> Element<'a, Message>
+where
+    Message: 'a,
+{
+    button
+        .content()
+        .as_text()
+        .map_or_else(|| text("").into(), |label| text(label).into())
 }
 
-fn button_compact_padding(context: &ComponentContext) -> [f32; 2] {
-    let button = &context.theme().theme().control.button;
-    [
-        button.compact_padding_y.value(),
-        button.compact_padding_x.value(),
-    ]
-}
-
-impl<'a, Message, Action> From<AnimatedButtonView<'a, Message, Action>> for Element<'a, Message>
+impl<'a, Message, Action> From<ButtonView<'a, Message, Action>> for Element<'a, Message>
 where
     Message: Clone + 'a,
     Action: 'a,
 {
-    fn from(view: AnimatedButtonView<'a, Message, Action>) -> Self {
-        let content = if view.center_content {
+    fn from(view: ButtonView<'a, Message, Action>) -> Self {
+        let content = if view.layout.center_content {
             container(view.content).center(Length::Fill).into()
         } else {
             view.content
         };
 
         let mut widget = button(content)
-            .padding(view.padding)
+            .padding(view.layout.padding)
             .style(move |_theme, _status| button_style(view.snapshot));
-        if let Some(width) = view.width {
+        if let Some(width) = view.layout.width {
             widget = widget.width(width);
         }
-        if let Some(height) = view.height {
+        if let Some(height) = view.layout.height {
             widget = widget.height(height);
         }
 
@@ -352,7 +242,7 @@ where
 
 /// Converts an animated button snapshot into an Iced button style.
 #[must_use]
-pub fn button_style(snapshot: AnimatedButtonSnapshot) -> button::Style {
+pub fn button_style(snapshot: ButtonSnapshot) -> button::Style {
     let style = snapshot.style;
     let motion = snapshot.motion;
 
@@ -398,7 +288,7 @@ mod tests {
     use iced::widget::{container, text};
 
     use crate::{
-        button::{AnimatedButton, ButtonEvent, ButtonInteraction},
+        button::{Button, ButtonEvent, ButtonInteraction},
         component::ComponentContext,
     };
 
@@ -408,7 +298,7 @@ mod tests {
     fn button_style_uses_snapshot_motion() {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut button = AnimatedButton::standard("Save");
+        let mut button = Button::standard("Save");
 
         button
             .update(ButtonInteraction::SetDisabled(true), &mut runtime)
@@ -439,7 +329,7 @@ mod tests {
 
         let runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let button = AnimatedButton::suggested("Save");
+        let button = Button::suggested("Save");
         let view = button
             .view(&runtime, &context)
             .on_press(Action::Save)
@@ -457,7 +347,7 @@ mod tests {
 
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut button = AnimatedButton::suggested("Save");
+        let mut button = Button::suggested("Save");
 
         button
             .update(ButtonInteraction::SetDisabled(true), &mut runtime)
@@ -474,67 +364,21 @@ mod tests {
 
         let runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let button = AnimatedButton::suggested("Save");
+        let button = Button::suggested("Save");
 
         let view = button.view(&runtime, &context);
         let _element: Element<'_, Message> = view.into();
     }
 
     #[test]
-    fn view_builder_accepts_sizing_helpers() {
+    fn view_builder_accepts_custom_element_content() {
         let runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let button = AnimatedButton::standard("i").circular().circular();
+        let button = Button::standard("Info").pill();
 
         let view = button
             .view(&runtime, &context)
-            .compact()
-            .width(34.0)
-            .height(34.0)
-            .square(34.0)
-            .on_press(())
-            .map_event(|_| ());
-        assert!(view.center_content);
-        let _element: Element<'_, ()> = view.into();
-    }
-
-    #[test]
-    fn default_view_does_not_force_centered_content() {
-        #[derive(Clone)]
-        enum Message {}
-
-        let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
-        let button = AnimatedButton::standard("Save");
-
-        let view = button.view(&runtime, &context);
-        assert!(!view.center_content);
-        let _element: Element<'_, Message> = view.into();
-    }
-
-    #[test]
-    fn view_builder_accepts_custom_content() {
-        let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
-        let button = AnimatedButton::standard("Info").pill();
-
-        let view = button
-            .view(&runtime, &context)
-            .element(container(text("Info")))
-            .on_press(())
-            .map_event(|_| ());
-        let _element: Element<'_, ()> = view.into();
-    }
-
-    #[test]
-    fn view_builder_accepts_text_content() {
-        let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
-        let button = AnimatedButton::standard("");
-
-        let view = button
-            .view(&runtime, &context)
-            .content("i")
+            .content(container(text("Info")))
             .on_press(())
             .map_event(|_| ());
         let _element: Element<'_, ()> = view.into();

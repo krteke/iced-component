@@ -1,4 +1,4 @@
-use spectrum_theme::{Color, Length, Radius, ShadowLayer};
+use spectrum_theme::{Color, Length, LengthUnit, Radius, ShadowLayer};
 
 use crate::{
     component::ComponentContext,
@@ -285,18 +285,15 @@ impl ButtonResolvedStyle {
 
     fn from_tokens(tokens: &impl ButtonTokens, state: ButtonStyleState) -> Self {
         let (background, foreground, border) = tokens.colors(state);
+        let placeholder = Length::new(0.0, LengthUnit::Px).expect("valid placeholder length");
 
         Self {
             background,
             foreground,
             border,
-            border_width: "0px"
-                .parse()
-                .expect("zero length is a valid placeholder before theme resolution"),
+            border_width: placeholder,
             focus_ring: tokens.focus_ring(),
-            radius: "0px"
-                .parse()
-                .expect("zero radius is a valid placeholder before shape resolution"),
+            radius: Radius::new(placeholder).expect("valid placeholder radius"),
             shadow: tokens.shadow(),
         }
     }

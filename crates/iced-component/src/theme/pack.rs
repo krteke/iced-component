@@ -37,13 +37,9 @@ define_theme_tokens! {
             button {
                 padding_x: Length,
                 padding_y: Length,
-                compact_padding_x: Length,
-                compact_padding_y: Length,
-                min_height: Length,
             }
             icon_button {
                 size: Length,
-                compact_size: Length,
                 icon_size: Length,
             }
         }
