@@ -86,6 +86,13 @@ impl Surface {
         Self::new(SurfaceRole::Raised)
     }
 
+    /// Returns this surface with a different visual role.
+    #[must_use]
+    pub fn with_role(mut self, role: SurfaceRole) -> Self {
+        self.role = role;
+        self
+    }
+
     /// Returns this surface with explicit inner padding.
     #[must_use]
     pub const fn padding(mut self, padding: f32) -> Self {
@@ -130,6 +137,16 @@ impl Surface {
             SurfaceInteraction::HoverExit => self.hovered = false,
         }
 
+        self.motion.transition_to(self.target_motion(), runtime)
+    }
+
+    /// Sets the surface role and transitions motion when registered.
+    pub fn set_role(
+        &mut self,
+        role: SurfaceRole,
+        runtime: &mut MotionRuntime,
+    ) -> Result<bool, MotionError> {
+        self.role = role;
         self.motion.transition_to(self.target_motion(), runtime)
     }
 
@@ -243,6 +260,24 @@ mod tests {
         runtime.tick(Duration::from_millis(200.0));
 
         assert_approx_eq!(f32, surface.motion_value(&runtime).unwrap().elevation, 1.15);
+    }
+
+    #[test]
+    fn set_role_updates_style_and_motion_target() {
+        let mut runtime = MotionRuntime::new();
+        let context = ComponentContext::current();
+        let mut surface = Surface::regular();
+
+        let changed = surface.set_role(SurfaceRole::Raised, &mut runtime).unwrap();
+        let snapshot = surface.snapshot(&runtime, &context).unwrap();
+
+        assert!(!changed);
+        assert_eq!(snapshot.role, SurfaceRole::Raised);
+        assert_eq!(
+            snapshot.style.background,
+            context.theme().theme().surface.raised.bg
+        );
+        assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
     }
 
     #[test]
