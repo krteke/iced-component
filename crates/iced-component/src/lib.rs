@@ -3,6 +3,7 @@
 pub mod button;
 pub mod component;
 pub mod motion;
+pub mod surface;
 pub mod theme;
 
 pub use aura_anim_core::{Motion, MotionError, MotionRuntime};

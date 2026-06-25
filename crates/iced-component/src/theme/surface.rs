@@ -11,7 +11,7 @@ pub enum SurfaceRole {
     /// App or page background.
     Background,
     /// Regular component surface.
-    Surface,
+    Regular,
     /// Raised panel, popover, or interactive container.
     Raised,
 }
@@ -37,7 +37,7 @@ impl SurfaceStyleTokens {
     pub fn from_theme(theme: &ThemePack, role: SurfaceRole) -> Self {
         let (background, radius, shadow) = match role {
             SurfaceRole::Background => (theme.app.bg, theme.surface.base.radius, None),
-            SurfaceRole::Surface => (theme.surface.base.bg, theme.surface.base.radius, None),
+            SurfaceRole::Regular => (theme.surface.base.bg, theme.surface.base.radius, None),
             SurfaceRole::Raised => (
                 theme.surface.raised.bg,
                 theme.surface.raised.radius,
@@ -49,11 +49,11 @@ impl SurfaceStyleTokens {
             background,
             foreground: match role {
                 SurfaceRole::Background => theme.app.fg,
-                SurfaceRole::Surface => theme.surface.base.fg,
+                SurfaceRole::Regular => theme.surface.base.fg,
                 SurfaceRole::Raised => theme.surface.raised.fg,
             },
             border: match role {
-                SurfaceRole::Background | SurfaceRole::Surface => theme.surface.base.border,
+                SurfaceRole::Background | SurfaceRole::Regular => theme.surface.base.border,
                 SurfaceRole::Raised => theme.surface.raised.border,
             },
             radius,

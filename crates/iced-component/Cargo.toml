@@ -23,5 +23,9 @@ float-cmp.workspace = true
 name = "button_demo"
 path = "examples/button_demo.rs"
 
+[[example]]
+name = "surface_demo"
+path = "examples/surface_demo.rs"
+
 [lints]
 workspace = true
