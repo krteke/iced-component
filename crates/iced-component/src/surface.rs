@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub use motion::SurfaceMotion;
-pub use view::{SurfaceView, surface_style};
+pub use view::{SurfaceLayout, SurfaceView, surface_style};
 
 /// Surface interaction handled by [`Surface`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -93,11 +93,39 @@ impl Surface {
         self
     }
 
+    /// Returns this surface with a different stable layout configuration.
+    #[must_use]
+    pub const fn with_layout(mut self, layout: SurfaceLayout) -> Self {
+        self.padding = layout.padding();
+        self.width = layout.width();
+        self.height = layout.height();
+        self
+    }
+
+    /// Replaces this surface's stable layout configuration.
+    pub fn set_layout(&mut self, layout: SurfaceLayout) {
+        self.padding = layout.padding();
+        self.width = layout.width();
+        self.height = layout.height();
+    }
+
+    /// Returns this surface with explicit inner padding.
+    #[must_use]
+    pub const fn with_padding(self, padding: f32) -> Self {
+        self.padding(padding)
+    }
+
     /// Returns this surface with explicit inner padding.
     #[must_use]
     pub const fn padding(mut self, padding: f32) -> Self {
         self.padding = padding;
         self
+    }
+
+    /// Returns this surface with a fixed rendered width.
+    #[must_use]
+    pub fn with_width(self, width: impl Into<Length>) -> Self {
+        self.width(width)
     }
 
     /// Returns this surface with a fixed rendered width.
@@ -109,9 +137,40 @@ impl Surface {
 
     /// Returns this surface with a fixed rendered height.
     #[must_use]
+    pub fn with_height(self, height: impl Into<Length>) -> Self {
+        self.height(height)
+    }
+
+    /// Returns this surface with a fixed rendered height.
+    #[must_use]
     pub fn height(mut self, height: impl Into<Length>) -> Self {
         self.height = Some(height.into());
         self
+    }
+
+    /// Updates this surface's inner padding.
+    pub fn set_padding(&mut self, padding: f32) {
+        self.padding = padding;
+    }
+
+    /// Updates this surface's fixed rendered width.
+    pub fn set_width(&mut self, width: impl Into<Length>) {
+        self.width = Some(width.into());
+    }
+
+    /// Clears this surface's fixed rendered width.
+    pub fn clear_width(&mut self) {
+        self.width = None;
+    }
+
+    /// Updates this surface's fixed rendered height.
+    pub fn set_height(&mut self, height: impl Into<Length>) {
+        self.height = Some(height.into());
+    }
+
+    /// Clears this surface's fixed rendered height.
+    pub fn clear_height(&mut self) {
+        self.height = None;
     }
 
     /// Registers the surface motion handle in the application runtime.
@@ -190,8 +249,16 @@ impl Surface {
         self.role
     }
 
-    pub(crate) const fn layout(&self) -> view::SurfaceLayout {
-        view::SurfaceLayout {
+    /// Returns whether the pointer is over this surface.
+    #[must_use]
+    pub const fn is_hovered(&self) -> bool {
+        self.hovered
+    }
+
+    /// Returns this surface's stable layout configuration.
+    #[must_use]
+    pub const fn layout(&self) -> SurfaceLayout {
+        SurfaceLayout {
             padding: self.padding,
             width: self.width,
             height: self.height,
@@ -211,7 +278,7 @@ mod tests {
 
     use crate::{
         component::ComponentContext,
-        surface::{Surface, SurfaceEvent, SurfaceInteraction, surface_style},
+        surface::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout, surface_style},
         theme::SurfaceRole,
     };
 
@@ -281,6 +348,36 @@ mod tests {
     }
 
     #[test]
+    fn layout_builders_and_setters_update_stable_config() {
+        let mut surface = Surface::raised()
+            .with_padding(10.0)
+            .with_width(200.0)
+            .with_height(96.0);
+
+        assert_approx_eq!(f32, surface.layout().padding(), 10.0);
+        assert_eq!(surface.layout().width(), Some(iced::Length::Fixed(200.0)));
+        assert_eq!(surface.layout().height(), Some(iced::Length::Fixed(96.0)));
+
+        surface.set_padding(14.0);
+        surface.set_width(240.0);
+        surface.clear_height();
+
+        assert_approx_eq!(f32, surface.layout().padding(), 14.0);
+        assert_eq!(surface.layout().width(), Some(iced::Length::Fixed(240.0)));
+        assert_eq!(surface.layout().height(), None);
+
+        surface.set_layout(SurfaceLayout::new(
+            8.0,
+            None,
+            Some(iced::Length::Fixed(72.0)),
+        ));
+
+        assert_approx_eq!(f32, surface.layout().padding(), 8.0);
+        assert_eq!(surface.layout().width(), None);
+        assert_eq!(surface.layout().height(), Some(iced::Length::Fixed(72.0)));
+    }
+
+    #[test]
     fn view_builds_iced_element_and_style() {
         #[derive(Clone)]
         enum Message {
@@ -289,7 +386,7 @@ mod tests {
 
         let runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let surface = Surface::raised().padding(12.0).width(180.0);
+        let surface = Surface::raised().with_padding(12.0).with_width(180.0);
         let snapshot = surface.snapshot(&runtime, &context).unwrap();
         let style = surface_style(snapshot);
 

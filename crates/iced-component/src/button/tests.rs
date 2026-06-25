@@ -2,7 +2,10 @@ use aura_anim_core::{MotionRuntime, timing::Duration};
 use float_cmp::assert_approx_eq;
 
 use crate::{
-    button::{Button, ButtonContent, ButtonRole, ButtonStyleState, ButtonVariant},
+    button::{
+        Button, ButtonContent, ButtonRole, ButtonShape, ButtonStyleState, ButtonTreatment,
+        ButtonVariant,
+    },
     component::ComponentContext,
     motion::{MotionSpeed, MotionTokens, MotionTransition},
 };
@@ -260,13 +263,53 @@ fn snapshot_reports_focus_and_disabled_state() {
 
 #[test]
 fn button_stores_stable_content_and_layout() {
-    let mut button = Button::standard("Save").width(120.0).height(34.0);
+    let mut button = Button::standard("Save").with_width(120.0).with_height(34.0);
 
     assert_eq!(button.content().as_text(), Some("Save"));
-    assert_eq!(button.layout().width, Some(iced::Length::Fixed(120.0)));
-    assert_eq!(button.layout().height, Some(iced::Length::Fixed(34.0)));
+    assert_eq!(button.layout().width(), Some(iced::Length::Fixed(120.0)));
+    assert_eq!(button.layout().height(), Some(iced::Length::Fixed(34.0)));
 
     button.set_content(ButtonContent::text("Saved"));
 
     assert_eq!(button.content().as_text(), Some("Saved"));
+}
+
+#[test]
+fn setters_update_stable_button_configuration() {
+    let mut button = Button::standard("Save")
+        .with_padding([6.0, 12.0])
+        .with_width(120.0)
+        .with_height(34.0)
+        .with_disabled(true);
+
+    assert!(button.is_disabled());
+    assert_eq!(button.layout().padding(), Some([6.0, 12.0]));
+    assert_eq!(button.layout().width(), Some(iced::Length::Fixed(120.0)));
+    assert_eq!(button.layout().height(), Some(iced::Length::Fixed(34.0)));
+
+    button.clear_content();
+    button.set_content("Saved");
+    button.set_role(ButtonRole::Destructive);
+    button.set_treatment(ButtonTreatment::Raised);
+    button.set_shape(ButtonShape::Pill);
+    button.set_square(40.0);
+
+    assert_eq!(button.content().as_text(), Some("Saved"));
+    assert_eq!(
+        button.variant(),
+        ButtonVariant::DESTRUCTIVE.set_raised().set_pill()
+    );
+    assert_eq!(button.layout().width(), Some(iced::Length::Fixed(40.0)));
+    assert_eq!(button.layout().height(), Some(iced::Length::Fixed(40.0)));
+    assert!(button.layout().center_content());
+
+    button.clear_padding();
+    button.clear_width();
+    button.clear_height();
+    button.set_center_content(false);
+
+    assert_eq!(button.layout().padding(), None);
+    assert_eq!(button.layout().width(), None);
+    assert_eq!(button.layout().height(), None);
+    assert!(!button.layout().center_content());
 }

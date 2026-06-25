@@ -92,11 +92,33 @@ impl Button {
         self.content = content.into();
     }
 
+    /// Clears this button's stable content.
+    pub fn clear_content(&mut self) {
+        self.content = ButtonContent::Empty;
+    }
+
+    /// Returns this button with a different stable layout configuration.
+    #[must_use]
+    pub const fn with_layout(mut self, layout: ButtonLayout) -> Self {
+        self.layout = layout;
+        self
+    }
+
+    /// Replaces this button's stable layout configuration.
+    pub fn set_layout(&mut self, layout: ButtonLayout) {
+        self.layout = layout;
+    }
+
     /// Returns this button with a different visual variant.
     #[must_use]
     pub fn with_variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
         self
+    }
+
+    /// Replaces this button's visual variant.
+    pub fn set_variant(&mut self, variant: ButtonVariant) {
+        self.variant = variant;
     }
 
     /// Returns this button with a different semantic role.
@@ -106,6 +128,11 @@ impl Button {
         self
     }
 
+    /// Updates this button's semantic role.
+    pub fn set_role(&mut self, role: ButtonRole) {
+        self.variant = self.variant.with_role(role);
+    }
+
     /// Returns this button with a different visual treatment.
     #[must_use]
     pub fn with_treatment(mut self, treatment: ButtonTreatment) -> Self {
@@ -113,11 +140,21 @@ impl Button {
         self
     }
 
+    /// Updates this button's visual treatment.
+    pub fn set_treatment(&mut self, treatment: ButtonTreatment) {
+        self.variant = self.variant.with_treatment(treatment);
+    }
+
     /// Returns this button with a different outline shape.
     #[must_use]
     pub fn with_shape(mut self, shape: ButtonShape) -> Self {
         self.variant = self.variant.with_shape(shape);
         self
+    }
+
+    /// Updates this button's outline shape.
+    pub fn set_shape(&mut self, shape: ButtonShape) {
+        self.variant = self.variant.with_shape(shape);
     }
 
     /// Returns this button as a standard action.
@@ -179,9 +216,21 @@ impl Button {
 
     /// Returns this button with explicit padding.
     #[must_use]
+    pub const fn with_padding(self, padding: [f32; 2]) -> Self {
+        self.padding(padding)
+    }
+
+    /// Returns this button with explicit padding.
+    #[must_use]
     pub const fn padding(mut self, padding: [f32; 2]) -> Self {
         self.layout.padding = Some(padding);
         self
+    }
+
+    /// Returns this button with a fixed rendered width.
+    #[must_use]
+    pub fn with_width(self, width: impl Into<Length>) -> Self {
+        self.width(width)
     }
 
     /// Returns this button with a fixed rendered width.
@@ -193,9 +242,21 @@ impl Button {
 
     /// Returns this button with a fixed rendered height.
     #[must_use]
+    pub fn with_height(self, height: impl Into<Length>) -> Self {
+        self.height(height)
+    }
+
+    /// Returns this button with a fixed rendered height.
+    #[must_use]
     pub fn height(mut self, height: impl Into<Length>) -> Self {
         self.layout.height = Some(height.into());
         self
+    }
+
+    /// Returns this button with equal width and height.
+    #[must_use]
+    pub fn with_square(self, size: f32) -> Self {
+        self.square(size)
     }
 
     /// Returns this button with equal width and height.
@@ -210,9 +271,58 @@ impl Button {
 
     /// Returns this button with disabled state preconfigured.
     #[must_use]
+    pub fn with_disabled(self, disabled: bool) -> Self {
+        self.disabled(disabled)
+    }
+
+    /// Returns this button with disabled state preconfigured.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.state.apply(ButtonInteraction::SetDisabled(disabled));
         self
+    }
+
+    /// Updates this button's explicit padding.
+    pub fn set_padding(&mut self, padding: [f32; 2]) {
+        self.layout.padding = Some(padding);
+    }
+
+    /// Clears this button's explicit padding.
+    pub fn clear_padding(&mut self) {
+        self.layout.padding = None;
+    }
+
+    /// Updates this button's fixed rendered width.
+    pub fn set_width(&mut self, width: impl Into<Length>) {
+        self.layout.width = Some(width.into());
+    }
+
+    /// Clears this button's fixed rendered width.
+    pub fn clear_width(&mut self) {
+        self.layout.width = None;
+    }
+
+    /// Updates this button's fixed rendered height.
+    pub fn set_height(&mut self, height: impl Into<Length>) {
+        self.layout.height = Some(height.into());
+    }
+
+    /// Clears this button's fixed rendered height.
+    pub fn clear_height(&mut self) {
+        self.layout.height = None;
+    }
+
+    /// Updates this button to equal width and height.
+    pub fn set_square(&mut self, size: f32) {
+        self.layout.width = Some(Length::Fixed(size));
+        self.layout.height = Some(Length::Fixed(size));
+        self.layout.padding = Some([0.0, 0.0]);
+        self.layout.center_content = true;
+    }
+
+    /// Updates whether this button's content should be centered.
+    pub fn set_center_content(&mut self, center_content: bool) {
+        self.layout.center_content = center_content;
     }
 
     /// Registers the button motion handle in the application runtime.
@@ -315,6 +425,24 @@ impl Button {
     #[must_use]
     pub const fn layout(&self) -> ButtonLayout {
         self.layout
+    }
+
+    /// Returns whether this button is disabled.
+    #[must_use]
+    pub const fn is_disabled(&self) -> bool {
+        self.state.is_disabled()
+    }
+
+    /// Returns whether this button is focused.
+    #[must_use]
+    pub const fn is_focused(&self) -> bool {
+        self.state.is_focused()
+    }
+
+    /// Returns this button's current style state.
+    #[must_use]
+    pub const fn style_state(&self) -> ButtonStyleState {
+        self.state.style_state()
     }
 
     fn target_motion(&self) -> ButtonMotion {

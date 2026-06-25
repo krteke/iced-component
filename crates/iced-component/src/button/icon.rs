@@ -12,8 +12,8 @@ pub use source::IconSource;
 
 use crate::{
     button::{
-        Button, ButtonEvent, ButtonInteraction, ButtonSnapshot, ButtonVariant, ButtonView,
-        view::ResolvedButtonLayout,
+        Button, ButtonEvent, ButtonInteraction, ButtonRole, ButtonShape, ButtonSnapshot,
+        ButtonTreatment, ButtonVariant, ButtonView, view::ResolvedButtonLayout,
     },
     component::ComponentContext,
 };
@@ -107,6 +107,43 @@ impl IconButton {
         self
     }
 
+    /// Replaces this icon button's icon source.
+    pub fn set_icon(&mut self, icon: impl Into<IconSource>) {
+        self.icon = icon.into();
+    }
+
+    /// Returns this icon button with a different inner button.
+    #[must_use]
+    pub fn with_button(mut self, button: Button) -> Self {
+        self.button = button;
+        self
+    }
+
+    /// Replaces this icon button's inner button.
+    pub fn set_button(&mut self, button: Button) {
+        self.button = button;
+    }
+
+    /// Updates this icon button's visual variant.
+    pub fn set_variant(&mut self, variant: ButtonVariant) {
+        self.button.set_variant(variant);
+    }
+
+    /// Updates this icon button's semantic role.
+    pub fn set_role(&mut self, role: ButtonRole) {
+        self.button.set_role(role);
+    }
+
+    /// Updates this icon button's visual treatment.
+    pub fn set_treatment(&mut self, treatment: ButtonTreatment) {
+        self.button.set_treatment(treatment);
+    }
+
+    /// Updates this icon button's outline shape.
+    pub fn set_shape(&mut self, shape: ButtonShape) {
+        self.button.set_shape(shape);
+    }
+
     /// Returns this icon button as a standard action.
     #[must_use]
     pub fn as_standard(mut self) -> Self {
@@ -172,9 +209,31 @@ impl IconButton {
 
     /// Returns this icon button with explicit square size in pixels.
     #[must_use]
+    pub const fn with_size(self, size: f32) -> Self {
+        self.size(size)
+    }
+
+    /// Returns this icon button with explicit square size in pixels.
+    #[must_use]
     pub const fn size(mut self, size: f32) -> Self {
         self.size = IconButtonSize::Fixed(size);
         self
+    }
+
+    /// Updates this icon button's explicit square size in pixels.
+    pub fn set_size(&mut self, size: f32) {
+        self.size = IconButtonSize::Fixed(size);
+    }
+
+    /// Restores theme default icon button sizing.
+    pub fn clear_size(&mut self) {
+        self.size = IconButtonSize::Default;
+    }
+
+    /// Returns this icon button with disabled state preconfigured.
+    #[must_use]
+    pub fn with_disabled(self, disabled: bool) -> Self {
+        self.disabled(disabled)
     }
 
     /// Returns this icon button with disabled state preconfigured.
@@ -258,6 +317,29 @@ impl IconButton {
     pub const fn as_button(&self) -> &Button {
         &self.button
     }
+
+    /// Returns the mutable inner animated button.
+    pub fn as_button_mut(&mut self) -> &mut Button {
+        &mut self.button
+    }
+
+    /// Consumes this icon button and returns the inner animated button.
+    #[must_use]
+    pub fn into_button(self) -> Button {
+        self.button
+    }
+
+    /// Returns whether this icon button is disabled.
+    #[must_use]
+    pub const fn is_disabled(&self) -> bool {
+        self.button.is_disabled()
+    }
+
+    /// Returns whether this icon button is focused.
+    #[must_use]
+    pub const fn is_focused(&self) -> bool {
+        self.button.is_focused()
+    }
 }
 
 impl IconButton {
@@ -323,8 +405,9 @@ mod tests {
 
     use crate::{
         button::{
-            Button, ButtonEvent, ButtonInteraction, ButtonStyleState, ButtonVariant,
-            icon::{IconButton, source::IconSource},
+            Button, ButtonEvent, ButtonInteraction, ButtonRole, ButtonShape, ButtonStyleState,
+            ButtonTreatment, ButtonVariant,
+            icon::{IconButton, IconButtonSize, source::IconSource},
         },
         component::ComponentContext,
     };
@@ -379,6 +462,39 @@ mod tests {
         let icon = IconButton::svg_bytes(TEST_ICON).with_icon(IconSource::text("!"));
 
         assert_eq!(icon.icon().text_fallback(), Some("!"));
+    }
+
+    #[test]
+    fn icon_button_setters_update_stable_config() {
+        let mut icon = IconButton::svg_bytes(TEST_ICON)
+            .with_size(42.0)
+            .with_disabled(true);
+
+        assert!(icon.is_disabled());
+        assert_eq!(icon.size_mode(), IconButtonSize::Fixed(42.0));
+
+        icon.set_icon(IconSource::text("?"));
+        icon.set_role(ButtonRole::Destructive);
+        icon.set_treatment(ButtonTreatment::Raised);
+        icon.set_shape(ButtonShape::Pill);
+        icon.set_size(36.0);
+
+        assert_eq!(icon.icon().text_fallback(), Some("?"));
+        assert_eq!(
+            icon.variant(),
+            ButtonVariant::DESTRUCTIVE.set_raised().set_pill()
+        );
+        assert_eq!(icon.size_mode(), IconButtonSize::Fixed(36.0));
+
+        icon.clear_size();
+        icon.set_button(Button::suggested("unused").flat());
+        icon.as_button_mut().set_shape(ButtonShape::Circular);
+
+        assert_eq!(icon.size_mode(), IconButtonSize::Default);
+        assert_eq!(
+            icon.variant(),
+            ButtonVariant::SUGGESTED.set_flat().set_circular()
+        );
     }
 
     #[test]

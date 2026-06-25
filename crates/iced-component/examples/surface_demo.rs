@@ -37,8 +37,8 @@ impl Demo {
     fn new() -> Self {
         let mut runtime = MotionRuntime::new();
         let context = ComponentContext::current();
-        let mut card = Surface::raised().padding(18.0).width(190.0);
-        let mut panel = Surface::regular().padding(18.0).width(190.0);
+        let mut card = Surface::raised().with_padding(18.0).with_width(190.0);
+        let mut panel = Surface::regular().with_padding(18.0).with_width(190.0);
 
         card.register(&mut runtime, &context);
         panel.register(&mut runtime, &context);

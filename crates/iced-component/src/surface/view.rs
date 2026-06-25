@@ -15,11 +15,42 @@ pub struct SurfaceView<'a, Message> {
     layout: SurfaceLayout,
 }
 
+/// Stable surface layout configuration.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct SurfaceLayout {
+pub struct SurfaceLayout {
     pub(crate) padding: f32,
     pub(crate) width: Option<Length>,
     pub(crate) height: Option<Length>,
+}
+
+impl SurfaceLayout {
+    /// Creates a stable surface layout configuration.
+    #[must_use]
+    pub const fn new(padding: f32, width: Option<Length>, height: Option<Length>) -> Self {
+        Self {
+            padding,
+            width,
+            height,
+        }
+    }
+
+    /// Returns the inner padding.
+    #[must_use]
+    pub const fn padding(self) -> f32 {
+        self.padding
+    }
+
+    /// Returns the fixed width, if configured.
+    #[must_use]
+    pub const fn width(self) -> Option<Length> {
+        self.width
+    }
+
+    /// Returns the fixed height, if configured.
+    #[must_use]
+    pub const fn height(self) -> Option<Length> {
+        self.height
+    }
 }
 
 impl Surface {
