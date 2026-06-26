@@ -338,6 +338,12 @@ impl Button {
         let _ = self.motion.register(runtime);
     }
 
+    /// Synchronizes this button's current motion target with the runtime.
+    pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.motion
+            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
+    }
+
     /// Applies a button interaction and transitions motion when registered.
     pub fn update(
         &mut self,
@@ -346,8 +352,7 @@ impl Button {
     ) -> Result<bool, MotionError> {
         self.state.apply(interaction);
 
-        self.motion
-            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
+        self.sync(cx)
     }
 
     /// Enables or disables this button and updates its motion target.
@@ -366,8 +371,7 @@ impl Button {
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<Option<Action>, MotionError> {
         let action = self.state.apply_event(event);
-        self.motion
-            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)?;
+        self.sync(cx)?;
         Ok(action)
     }
 

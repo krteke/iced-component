@@ -40,8 +40,7 @@ impl Demo {
         let mut card = Surface::raised().with_padding(18.0).with_width(190.0);
         let mut panel = Surface::regular().with_padding(18.0).with_width(190.0);
 
-        card.register(&mut runtime);
-        panel.register(&mut runtime);
+        iced_component::register_components!(runtime, [card, panel]);
 
         Self {
             runtime,

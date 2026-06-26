@@ -183,6 +183,12 @@ impl Surface {
         let _ = self.motion.register(runtime);
     }
 
+    /// Synchronizes this surface's current motion target with the runtime.
+    pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.motion
+            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
+    }
+
     /// Applies a surface interaction and transitions motion when registered.
     pub fn update(
         &mut self,
@@ -194,8 +200,7 @@ impl Surface {
             SurfaceInteraction::HoverExit => self.hovered = false,
         }
 
-        self.motion
-            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
+        self.sync(cx)
     }
 
     /// Sets the surface role and transitions motion when registered.
@@ -206,8 +211,7 @@ impl Surface {
     ) -> Result<bool, MotionError> {
         self.role = role;
 
-        self.motion
-            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
+        self.sync(cx)
     }
 
     /// Applies a surface event.

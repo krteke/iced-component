@@ -40,8 +40,7 @@ impl Demo {
         let mut inspector = Panel::titled("Inspector");
         let mut status = Panel::titled("Status");
 
-        inspector.register(&mut runtime);
-        status.register(&mut runtime);
+        iced_component::register_components!(runtime, [inspector, status]);
 
         Self {
             runtime,

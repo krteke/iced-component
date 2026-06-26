@@ -1,6 +1,7 @@
 //! Shared component-side motion slots.
 
 mod context;
+mod macros;
 
 use aura_anim::{
     core::{

@@ -141,6 +141,11 @@ impl Panel {
         self.surface.register(runtime);
     }
 
+    /// Synchronizes the panel surface's current motion target with the runtime.
+    pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.surface.sync(cx)
+    }
+
     /// Applies a panel surface event.
     pub fn update_event(
         &mut self,

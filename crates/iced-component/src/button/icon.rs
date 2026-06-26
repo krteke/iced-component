@@ -248,6 +248,11 @@ impl IconButton {
         self.button.register(runtime);
     }
 
+    /// Synchronizes the inner button's current motion target with the runtime.
+    pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.button.sync(cx)
+    }
+
     /// Applies an interaction to the inner button.
     pub fn update(
         &mut self,

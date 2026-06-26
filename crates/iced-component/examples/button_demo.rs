@@ -64,9 +64,7 @@ impl Demo {
         let mut reset_button = Button::standard("Reset").flat();
         let mut motion_button = IconButton::suggested(IconSource::svg_static(MOTION_ICON));
 
-        save_button.register(&mut runtime);
-        reset_button.register(&mut runtime);
-        motion_button.register(&mut runtime);
+        iced_component::register_components!(runtime, [save_button, reset_button, motion_button]);
 
         Self {
             runtime,
@@ -108,9 +106,16 @@ impl Demo {
             },
             Message::MotionButton(event) => match self.motion_button.update_event(event, &mut cx) {
                 Ok(Some(MotionAction::Toggle)) => {
-                    self.motion_error = None;
-                    self.context
-                        .set_reduce_motion(!self.context.reduce_motion());
+                    let reduce_motion = !cx.context().reduce_motion();
+                    cx.context_mut().set_reduce_motion(reduce_motion);
+
+                    match iced_component::sync_components!(
+                        cx,
+                        [self.save_button, self.reset_button, self.motion_button]
+                    ) {
+                        Ok(_) => self.motion_error = None,
+                        Err(error) => self.motion_error = Some(error.to_string()),
+                    }
                 }
                 Ok(None) => self.motion_error = None,
                 Err(error) => self.motion_error = Some(error.to_string()),
