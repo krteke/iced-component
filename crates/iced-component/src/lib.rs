@@ -7,4 +7,7 @@ pub mod panel;
 pub mod surface;
 pub mod theme;
 
-pub use aura_anim_core::{Motion, MotionError, MotionRuntime};
+/// Re-exports animation runtime types from `aura_anim`.
+pub mod anim {
+    pub use aura_anim::core::runtime::{Motion, MotionError, MotionRuntime};
+}

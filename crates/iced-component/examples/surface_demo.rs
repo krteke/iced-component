@@ -4,10 +4,10 @@ use std::time::Duration;
 
 use iced::widget::{column, container, row, text};
 use iced::{Element, Fill, Subscription, Task, Theme, application, time};
-use iced_component::component::ComponentContext;
+use iced_component::anim::{MotionError, MotionRuntime};
+use iced_component::component::{ComponentContext, ComponentUpdateCx, ComponentViewCx};
 use iced_component::surface::{Surface, SurfaceEvent, SurfaceInteraction};
 use iced_component::theme::SurfaceRole;
-use iced_component::{MotionError, MotionRuntime};
 
 fn main() -> iced::Result {
     application(Demo::new, Demo::update, Demo::view)
@@ -36,12 +36,12 @@ enum Message {
 impl Demo {
     fn new() -> Self {
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::default();
         let mut card = Surface::raised().with_padding(18.0).with_width(190.0);
         let mut panel = Surface::regular().with_padding(18.0).with_width(190.0);
 
-        card.register(&mut runtime, &context);
-        panel.register(&mut runtime, &context);
+        card.register(&mut runtime);
+        panel.register(&mut runtime);
 
         Self {
             runtime,
@@ -53,26 +53,31 @@ impl Demo {
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
+        let mut cx = ComponentUpdateCx::new(&mut self.runtime, &mut self.context);
+
         match message {
             Message::Tick => {
                 self.runtime
                     .tick(iced_component::motion::Duration::from_millis(16.0));
             }
             Message::Card(event) => {
-                let result = self.card.update_event(event, &mut self.runtime);
+                let result = { self.card.update_event(event, &mut cx) };
                 record_motion_result(self, result);
             }
             Message::Panel(event) => {
-                let result = self.panel.update_event(event, &mut self.runtime);
-                let role_result = match event {
-                    SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter) => {
-                        self.panel.set_role(SurfaceRole::Raised, &mut self.runtime)
-                    }
-                    SurfaceEvent::Interaction(SurfaceInteraction::HoverExit) => {
-                        self.panel.set_role(SurfaceRole::Regular, &mut self.runtime)
-                    }
+                let result = {
+                    let result = self.panel.update_event(event, &mut cx);
+                    let role_result = match event {
+                        SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter) => {
+                            self.panel.set_role(SurfaceRole::Raised, &mut cx)
+                        }
+                        SurfaceEvent::Interaction(SurfaceInteraction::HoverExit) => {
+                            self.panel.set_role(SurfaceRole::Regular, &mut cx)
+                        }
+                    };
+                    result.and(role_result)
                 };
-                record_motion_result(self, result.and(role_result));
+                record_motion_result(self, result);
             }
         }
 
@@ -80,14 +85,14 @@ impl Demo {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let card_snapshot = self.card.snapshot(&self.runtime, &self.context).unwrap();
-        let panel_snapshot = self.panel.snapshot(&self.runtime, &self.context).unwrap();
+        let cx = ComponentViewCx::new(&self.runtime, &self.context);
+        let card_snapshot = self.card.snapshot(&cx).unwrap();
+        let panel_snapshot = self.panel.snapshot(&cx).unwrap();
 
         let card = self
             .card
             .view(
-                &self.runtime,
-                &self.context,
+                &cx,
                 column![
                     text("Raised surface").size(18),
                     text(format!("elevation {:.2}", card_snapshot.motion.elevation)).size(14),
@@ -99,8 +104,7 @@ impl Demo {
         let panel = self
             .panel
             .view(
-                &self.runtime,
-                &self.context,
+                &cx,
                 column![
                     text("Role-switching surface").size(18),
                     text(format!("border {:.2}", panel_snapshot.motion.border_alpha)).size(14),

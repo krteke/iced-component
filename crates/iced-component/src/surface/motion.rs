@@ -1,4 +1,4 @@
-use aura_anim_core::Animatable;
+use aura_anim::prelude::Animatable;
 
 use crate::theme::SurfaceRole;
 

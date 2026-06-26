@@ -121,7 +121,7 @@ mod tests {
     fn surface_style_uses_component_context() {
         let scoped_bg = Color::new(238, 244, 250);
         let context =
-            ComponentContext::current().scoped_theme(|theme| theme.surface.raised.bg = scoped_bg);
+            ComponentContext::adwaita().scoped_theme(|theme| theme.surface.raised.bg = scoped_bg);
 
         let style = SurfaceStyleTokens::from_component_context(&context, SurfaceRole::Raised);
 

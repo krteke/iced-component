@@ -3,11 +3,12 @@
 mod motion;
 mod view;
 
-use aura_anim_core::{MotionError, MotionRuntime, timing::Timing};
+use aura_anim::prelude::{MotionError, MotionRuntime, Timing};
 use iced::Length;
 
 use crate::{
-    component::{ComponentContext, ComponentMotion},
+    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot},
+    motion::reduce_timing,
     theme::{SurfaceRole, SurfaceStyleTokens},
 };
 
@@ -51,7 +52,7 @@ pub struct Surface {
     padding: f32,
     width: Option<Length>,
     height: Option<Length>,
-    motion: ComponentMotion<SurfaceMotion>,
+    motion: MotionSlot<SurfaceMotion>,
 }
 
 impl Surface {
@@ -64,7 +65,7 @@ impl Surface {
             padding: 0.0,
             width: None,
             height: None,
-            motion: ComponentMotion::new(SurfaceMotion::for_role(role, false), Timing::default()),
+            motion: MotionSlot::new(SurfaceMotion::for_role(role, false)),
         }
     }
 
@@ -174,14 +175,12 @@ impl Surface {
     }
 
     /// Registers the surface motion handle in the application runtime.
-    pub fn register(&mut self, runtime: &mut MotionRuntime, context: &ComponentContext) {
+    pub fn register(&mut self, runtime: &mut MotionRuntime) {
         if self.motion.is_registered() {
             return;
         }
 
-        let motion_tokens = context.motion_tokens();
-        let timing = motion_tokens.timing(motion_tokens.interaction, context.motion_preferences());
-        self.motion = ComponentMotion::new(self.target_motion(), timing);
+        self.motion.set_initial(self.target_motion());
         let _ = self.motion.register(runtime);
     }
 
@@ -189,34 +188,38 @@ impl Surface {
     pub fn update(
         &mut self,
         interaction: SurfaceInteraction,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         match interaction {
             SurfaceInteraction::HoverEnter => self.hovered = true,
             SurfaceInteraction::HoverExit => self.hovered = false,
         }
 
-        self.motion.transition_to(self.target_motion(), runtime)
+        let timing = interaction_timing(cx.context());
+        self.motion
+            .tween_to(self.target_motion(), timing, cx.runtime)
     }
 
     /// Sets the surface role and transitions motion when registered.
     pub fn set_role(
         &mut self,
         role: SurfaceRole,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         self.role = role;
-        self.motion.transition_to(self.target_motion(), runtime)
+        let timing = interaction_timing(cx.context());
+        self.motion
+            .tween_to(self.target_motion(), timing, cx.runtime)
     }
 
     /// Applies a surface event.
     pub fn update_event(
         &mut self,
         event: SurfaceEvent,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         match event {
-            SurfaceEvent::Interaction(interaction) => self.update(interaction, runtime),
+            SurfaceEvent::Interaction(interaction) => self.update(interaction, cx),
         }
     }
 
@@ -230,15 +233,11 @@ impl Surface {
     }
 
     /// Returns a rendering snapshot without exposing internal state.
-    pub fn snapshot(
-        &self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
-    ) -> Result<SurfaceSnapshot, MotionError> {
+    pub fn snapshot(&self, cx: &ComponentViewCx<'_>) -> Result<SurfaceSnapshot, MotionError> {
         Ok(SurfaceSnapshot {
             role: self.role,
-            style: SurfaceStyleTokens::from_component_context(context, self.role),
-            motion: self.motion_value(runtime)?,
+            style: SurfaceStyleTokens::from_component_context(cx.context(), self.role),
+            motion: self.motion_value(cx.runtime)?,
             hovered: self.hovered,
         })
     }
@@ -270,14 +269,18 @@ impl Surface {
     }
 }
 
+fn interaction_timing(context: &ComponentContext) -> Timing {
+    reduce_timing(Timing::ease_out(200.0), context.reduce_motion())
+}
+
 #[cfg(test)]
 mod tests {
-    use aura_anim_core::{MotionRuntime, timing::Duration};
+    use aura_anim::prelude::*;
     use float_cmp::assert_approx_eq;
     use iced::Element;
 
     use crate::{
-        component::ComponentContext,
+        component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
         surface::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout, surface_style},
         theme::SurfaceRole,
     };
@@ -285,10 +288,11 @@ mod tests {
     #[test]
     fn snapshot_resolves_surface_tokens() {
         let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::adwaita();
+        let cx = ComponentViewCx::new(&runtime, &context);
         let surface = Surface::raised();
 
-        let snapshot = surface.snapshot(&runtime, &context).unwrap();
+        let snapshot = surface.snapshot(&cx).unwrap();
 
         assert_eq!(snapshot.role, SurfaceRole::Raised);
         assert_eq!(
@@ -301,11 +305,15 @@ mod tests {
     #[test]
     fn hover_updates_target_before_registration() {
         let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
         let mut surface = Surface::raised();
 
-        let changed = surface
-            .update(SurfaceInteraction::HoverEnter, &mut runtime)
-            .unwrap();
+        let changed = {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            surface
+                .update(SurfaceInteraction::HoverEnter, &mut cx)
+                .unwrap()
+        };
 
         assert!(!changed);
         assert_approx_eq!(f32, surface.motion_value(&runtime).unwrap().elevation, 1.15);
@@ -314,16 +322,19 @@ mod tests {
     #[test]
     fn registered_hover_animates_elevation() {
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let mut context = ComponentContext::adwaita();
         let mut surface = Surface::raised();
 
-        surface.register(&mut runtime, &context);
-        surface
-            .update_event(
-                SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter),
-                &mut runtime,
-            )
-            .unwrap();
+        surface.register(&mut runtime);
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            surface
+                .update_event(
+                    SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter),
+                    &mut cx,
+                )
+                .unwrap();
+        }
         runtime.tick(Duration::from_millis(200.0));
 
         assert_approx_eq!(f32, surface.motion_value(&runtime).unwrap().elevation, 1.15);
@@ -332,11 +343,15 @@ mod tests {
     #[test]
     fn set_role_updates_style_and_motion_target() {
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let mut context = ComponentContext::adwaita();
         let mut surface = Surface::regular();
 
-        let changed = surface.set_role(SurfaceRole::Raised, &mut runtime).unwrap();
-        let snapshot = surface.snapshot(&runtime, &context).unwrap();
+        let changed = {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            surface.set_role(SurfaceRole::Raised, &mut cx).unwrap()
+        };
+        let cx = ComponentViewCx::new(&runtime, &context);
+        let snapshot = surface.snapshot(&cx).unwrap();
 
         assert!(!changed);
         assert_eq!(snapshot.role, SurfaceRole::Raised);
@@ -385,15 +400,16 @@ mod tests {
         }
 
         let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::adwaita();
+        let cx = ComponentViewCx::new(&runtime, &context);
         let surface = Surface::raised().with_padding(12.0).with_width(180.0);
-        let snapshot = surface.snapshot(&runtime, &context).unwrap();
+        let snapshot = surface.snapshot(&cx).unwrap();
         let style = surface_style(snapshot);
 
         assert!(style.shadow.blur_radius > 0.0);
 
         let view = surface
-            .view(&runtime, &context, iced::widget::text("Surface"))
+            .view(&cx, iced::widget::text("Surface"))
             .connect(Message::Surface);
         let _element: Element<'_, Message> = view.into();
 

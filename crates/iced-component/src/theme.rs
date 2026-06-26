@@ -5,7 +5,7 @@ mod error;
 mod pack;
 mod surface;
 
-pub use context::{ThemeContext, with_theme_context};
+pub use context::ThemeContext;
 pub use error::ThemeLoadError;
 pub use pack::{
     ADWAITA_LIGHT_TOML, AppTokens, ButtonDestructiveFilledTokens, ButtonDestructiveFlatTokens,
@@ -13,7 +13,7 @@ pub use pack::{
     ButtonStandardFilledTokens, ButtonStandardFlatTokens, ButtonStandardRaisedTokens,
     ButtonStandardTokens, ButtonSuggestedFilledTokens, ButtonSuggestedFlatTokens,
     ButtonSuggestedRaisedTokens, ButtonSuggestedTokens, ControlTokens, SurfaceRaisedTokens,
-    SurfaceTokens, ThemePack, set_theme_pack, with_theme_pack,
+    SurfaceTokens, ThemePack,
 };
 pub use spectrum_theme::{
     Color, ColorParseError, FontStyle, FontStyleParseError, FontWeight, FontWeightParseError,

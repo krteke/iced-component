@@ -1,13 +1,16 @@
 //! Panel component built on top of [`crate::surface::Surface`].
 
-use aura_anim_core::{MotionError, MotionRuntime};
-use iced::widget::{column, text};
-use iced::{Element, Length};
+mod view;
+
+use aura_anim::prelude::{MotionError, MotionRuntime};
+use iced::Length;
 
 use crate::{
-    component::ComponentContext,
-    surface::{Surface, SurfaceEvent, SurfaceLayout, SurfaceSnapshot, SurfaceView},
+    component::{ComponentUpdateCx, ComponentViewCx},
+    surface::{Surface, SurfaceEvent, SurfaceLayout, SurfaceSnapshot},
 };
+
+pub use view::PanelView;
 
 /// Raised content panel with an optional title.
 #[derive(Debug)]
@@ -134,48 +137,22 @@ impl Panel {
     }
 
     /// Registers the panel surface motion handle.
-    pub fn register(&mut self, runtime: &mut MotionRuntime, context: &ComponentContext) {
-        self.surface.register(runtime, context);
+    pub fn register(&mut self, runtime: &mut MotionRuntime) {
+        self.surface.register(runtime);
     }
 
     /// Applies a panel surface event.
     pub fn update_event(
         &mut self,
         event: SurfaceEvent,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        self.surface.update_event(event, runtime)
+        self.surface.update_event(event, cx)
     }
 
     /// Returns a rendering snapshot of the panel surface.
-    pub fn snapshot(
-        &self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
-    ) -> Result<SurfaceSnapshot, MotionError> {
-        self.surface.snapshot(runtime, context)
-    }
-
-    /// Builds an Iced view for this panel.
-    #[must_use]
-    pub fn view<'a, Message>(
-        &'a self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
-        body: impl Into<Element<'a, Message>>,
-    ) -> SurfaceView<'a, Message>
-    where
-        Message: Clone + 'a,
-    {
-        let body = body.into();
-        let panel_content = match self.title.as_deref() {
-            Some(title) => column![text(title).size(17), body]
-                .spacing(self.spacing)
-                .into(),
-            None => body,
-        };
-
-        self.surface.view(runtime, context, panel_content)
+    pub fn snapshot(&self, cx: &ComponentViewCx<'_>) -> Result<SurfaceSnapshot, MotionError> {
+        self.surface.snapshot(cx)
     }
 
     /// Returns this panel's title.
@@ -240,13 +217,13 @@ impl Default for Panel {
 
 #[cfg(test)]
 mod tests {
-    use aura_anim_core::{MotionRuntime, timing::Duration};
+    use aura_anim::prelude::*;
     use float_cmp::assert_approx_eq;
     use iced::Element;
-    use iced::widget::text;
+    use iced::widget::{row, text};
 
     use crate::{
-        component::ComponentContext,
+        component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
         panel::Panel,
         surface::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout},
         theme::SurfaceRole,
@@ -255,10 +232,11 @@ mod tests {
     #[test]
     fn panel_defaults_to_raised_surface() {
         let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::adwaita();
+        let cx = ComponentViewCx::new(&runtime, &context);
         let panel = Panel::new();
 
-        let snapshot = panel.snapshot(&runtime, &context).unwrap();
+        let snapshot = panel.snapshot(&cx).unwrap();
 
         assert_eq!(snapshot.role, SurfaceRole::Raised);
         assert!(snapshot.style.shadow.is_some());
@@ -308,23 +286,23 @@ mod tests {
     #[test]
     fn panel_delegates_surface_events() {
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let mut context = ComponentContext::adwaita();
         let mut panel = Panel::new();
 
-        panel.register(&mut runtime, &context);
-        panel
-            .update_event(
-                SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter),
-                &mut runtime,
-            )
-            .unwrap();
+        panel.register(&mut runtime);
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            panel
+                .update_event(
+                    SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter),
+                    &mut cx,
+                )
+                .unwrap();
+        }
         runtime.tick(Duration::from_millis(200.0));
 
-        assert_approx_eq!(
-            f32,
-            panel.snapshot(&runtime, &context).unwrap().motion.elevation,
-            1.15
-        );
+        let cx = ComponentViewCx::new(&runtime, &context);
+        assert_approx_eq!(f32, panel.snapshot(&cx).unwrap().motion.elevation, 1.15);
     }
 
     #[test]
@@ -335,11 +313,14 @@ mod tests {
         }
 
         let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::adwaita();
+        let cx = ComponentViewCx::new(&runtime, &context);
         let panel = Panel::titled("Overview");
 
         let view = panel
-            .view(&runtime, &context, text("Panel body"))
+            .view(&cx)
+            .body(text("Panel body"))
+            .footer(row![text("Ready"), text("Idle")])
             .connect(Message::Panel);
         let _element: Element<'_, Message> = view.into();
 

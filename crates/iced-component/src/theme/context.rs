@@ -1,4 +1,4 @@
-use super::pack::{ThemePack, with_theme_pack};
+use super::pack::ThemePack;
 
 /// Theme snapshot used while resolving component styles.
 #[derive(Clone)]
@@ -21,10 +21,10 @@ impl ThemeContext {
         }
     }
 
-    /// Creates a context from the current thread-local theme.
+    /// Creates a context from the default Adwaita-like theme.
     #[must_use]
-    pub fn current() -> Self {
-        with_theme_pack(Self::from_theme)
+    pub fn adwaita() -> Self {
+        Self::new(ThemePack::adwaita())
     }
 
     /// Returns the resolved theme snapshot.
@@ -56,33 +56,13 @@ impl ThemeContext {
     }
 }
 
-/// Reads a snapshot of the current thread-local theme context.
-pub fn with_theme_context<R>(read: impl FnOnce(&ThemeContext) -> R) -> R {
-    let context = ThemeContext::current();
-    read(&context)
-}
-
 #[cfg(test)]
 mod tests {
     use spectrum_theme::Color;
 
-    use crate::theme::{ThemePack, set_theme_pack};
+    use crate::theme::ThemePack;
 
-    use super::{ThemeContext, with_theme_context};
-
-    #[test]
-    fn current_context_reads_thread_local_theme() {
-        let accent = Color::new(26, 95, 180);
-        let mut theme = ThemePack::adwaita();
-        theme.button.suggested.filled.idle.bg = accent;
-
-        set_theme_pack(theme);
-
-        with_theme_context(|context| {
-            assert_eq!(context.theme().button.suggested.filled.idle.bg, accent);
-        });
-        set_theme_pack(ThemePack::adwaita());
-    }
+    use super::ThemeContext;
 
     #[test]
     fn scoped_context_does_not_mutate_parent() {
@@ -92,5 +72,12 @@ mod tests {
 
         assert_ne!(parent.theme().button.standard.filled.hover.bg, scoped_bg);
         assert_eq!(scoped.theme().button.standard.filled.hover.bg, scoped_bg);
+    }
+
+    #[test]
+    fn adwaita_context_uses_default_theme() {
+        let context = ThemeContext::adwaita();
+
+        assert_eq!(context.theme().app.bg, ThemePack::adwaita().app.bg);
     }
 }

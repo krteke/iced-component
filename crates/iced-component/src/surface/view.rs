@@ -1,11 +1,12 @@
 //! Iced view builder for animated surfaces.
 
+use aura_anim::prelude::MotionError;
 use iced::widget::{container, mouse_area};
 use iced::{Background, Border, Color, Element, Length, Shadow, Vector};
 use spectrum_theme::iced::{IcedColorAdapter, IcedRadiusAdapter, IcedShadowAdapter};
 
 use super::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceSnapshot};
-use crate::{MotionError, MotionRuntime, component::ComponentContext};
+use crate::component::ComponentViewCx;
 
 /// Iced view builder for [`Surface`].
 pub struct SurfaceView<'a, Message> {
@@ -58,37 +59,47 @@ impl Surface {
     #[must_use]
     pub fn view<'a, Message>(
         &self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
+        cx: &ComponentViewCx<'_>,
         child: impl Into<Element<'a, Message>>,
     ) -> SurfaceView<'a, Message>
     where
         Message: Clone + 'a,
     {
-        self.try_view(runtime, context, child)
+        self.try_view(cx, child)
             .expect("surface motion handle belongs to the provided runtime")
     }
 
     /// Tries to build an Iced view for this surface.
     pub fn try_view<'a, Message>(
         &self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
+        cx: &ComponentViewCx<'_>,
         child: impl Into<Element<'a, Message>>,
     ) -> Result<SurfaceView<'a, Message>, MotionError>
     where
         Message: Clone + 'a,
     {
-        Ok(SurfaceView {
-            snapshot: self.snapshot(runtime, context)?,
-            content: child.into(),
-            on_event: None,
-            layout: self.layout(),
-        })
+        Ok(SurfaceView::from_parts(
+            self.snapshot(cx)?,
+            child,
+            self.layout(),
+        ))
     }
 }
 
 impl<'a, Message> SurfaceView<'a, Message> {
+    pub(crate) fn from_parts(
+        snapshot: SurfaceSnapshot,
+        content: impl Into<Element<'a, Message>>,
+        layout: SurfaceLayout,
+    ) -> Self {
+        Self {
+            snapshot,
+            content: content.into(),
+            on_event: None,
+            layout,
+        }
+    }
+
     /// Maps surface events into application messages.
     #[must_use]
     pub fn connect(mut self, mapper: impl Fn(SurfaceEvent) -> Message + 'a) -> Self {

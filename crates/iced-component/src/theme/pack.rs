@@ -1,7 +1,6 @@
 use spectrum_resolver::resolve_theme;
 use spectrum_schema::ThemeSpec;
 use spectrum_theme::{Color, Length, Radius, ShadowLayer, define_theme_tokens};
-use std::cell::RefCell;
 use std::sync::OnceLock;
 
 use crate::theme::ThemeLoadError;
@@ -166,10 +165,6 @@ pub type ButtonDestructiveRaisedTokens = ThemePackButtonDestructiveRaised;
 /// Backward-compatible alias for suggested-action button tokens.
 pub type ButtonPrimaryTokens = ButtonSuggestedTokens;
 
-thread_local! {
-    static CURRENT_THEME: RefCell<ThemePack> = RefCell::new(ThemePack::adwaita());
-}
-
 impl ThemePack {
     /// Returns the default muted Adwaita-like baseline.
     #[must_use]
@@ -195,22 +190,12 @@ impl ThemePack {
     }
 }
 
-/// Reads the current thread-local theme pack.
-pub fn with_theme_pack<R>(read: impl FnOnce(&ThemePack) -> R) -> R {
-    CURRENT_THEME.with(|theme| read(&theme.borrow()))
-}
-
-/// Replaces the current thread-local theme pack.
-pub fn set_theme_pack(theme: ThemePack) {
-    CURRENT_THEME.with(|current| *current.borrow_mut() = theme);
-}
-
 #[cfg(test)]
 mod tests {
     use float_cmp::assert_approx_eq;
     use spectrum_theme::Color;
 
-    use super::{ADWAITA_LIGHT_TOML, ThemePack, set_theme_pack, with_theme_pack};
+    use super::{ADWAITA_LIGHT_TOML, ThemePack};
 
     #[test]
     fn adwaita_baseline_uses_muted_blue_accent() {
@@ -228,18 +213,6 @@ mod tests {
 
         assert!(shadow.color().alpha() <= 48);
         assert!(shadow.blur().value() <= 12.0);
-    }
-
-    #[test]
-    fn thread_local_theme_can_be_replaced() {
-        let accent = Color::new(26, 95, 180);
-        let mut theme = ThemePack::adwaita();
-        theme.button.suggested.filled.idle.bg = accent;
-
-        set_theme_pack(theme);
-
-        with_theme_pack(|current| assert_eq!(current.button.suggested.filled.idle.bg, accent));
-        set_theme_pack(ThemePack::adwaita());
     }
 
     #[test]

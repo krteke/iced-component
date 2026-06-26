@@ -10,12 +10,16 @@ mod style;
 mod tests;
 mod view;
 
-use aura_anim_core::{MotionError, MotionRuntime, timing::Timing};
+use aura_anim::{
+    core::runtime::{MotionError, MotionRuntime},
+    prelude::Timing,
+};
 use iced::Length;
 
 use crate::{
     button::state::ButtonState,
-    component::{ComponentContext, ComponentMotion},
+    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot},
+    motion::reduce_timing,
 };
 
 pub use animated::{ButtonEvent, ButtonInteraction, ButtonSnapshot};
@@ -34,7 +38,7 @@ pub struct Button {
     layout: ButtonLayout,
     variant: ButtonVariant,
     state: ButtonState,
-    motion: ComponentMotion<ButtonMotion>,
+    motion: MotionSlot<ButtonMotion>,
 }
 
 impl Button {
@@ -46,7 +50,7 @@ impl Button {
             layout: ButtonLayout::default(),
             variant,
             state: ButtonState::default(),
-            motion: ComponentMotion::new(ButtonMotion::idle(), Timing::default()),
+            motion: MotionSlot::new(ButtonMotion::idle()),
         }
     }
 
@@ -326,14 +330,12 @@ impl Button {
     }
 
     /// Registers the button motion handle in the application runtime.
-    pub fn register(&mut self, runtime: &mut MotionRuntime, context: &ComponentContext) {
+    pub fn register(&mut self, runtime: &mut MotionRuntime) {
         if self.motion.is_registered() {
             return;
         }
 
-        let motion_tokens = context.motion_tokens();
-        let timing = motion_tokens.timing(motion_tokens.interaction, context.motion_preferences());
-        self.motion = ComponentMotion::new(self.target_motion(), timing);
+        self.motion.set_initial(self.target_motion());
         let _ = self.motion.register(runtime);
     }
 
@@ -341,29 +343,33 @@ impl Button {
     pub fn update(
         &mut self,
         interaction: ButtonInteraction,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         self.state.apply(interaction);
-        self.motion.transition_to(self.target_motion(), runtime)
+        let timing = interaction_timing(cx.context());
+        self.motion
+            .tween_to(self.target_motion(), timing, cx.runtime)
     }
 
     /// Enables or disables this button and updates its motion target.
     pub fn set_disabled(
         &mut self,
         disabled: bool,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        self.update(ButtonInteraction::SetDisabled(disabled), runtime)
+        self.update(ButtonInteraction::SetDisabled(disabled), cx)
     }
 
     /// Applies a button event and returns its application action, if any.
     pub fn update_event<Action>(
         &mut self,
         event: ButtonEvent<Action>,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<Option<Action>, MotionError> {
         let action = self.state.apply_event(event);
-        self.motion.transition_to(self.target_motion(), runtime)?;
+        let timing = interaction_timing(cx.context());
+        self.motion
+            .tween_to(self.target_motion(), timing, cx.runtime)?;
         Ok(action)
     }
 
@@ -371,10 +377,10 @@ impl Button {
     pub fn update_event_with<Action>(
         &mut self,
         event: ButtonEvent<Action>,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
         on_action: impl FnOnce(Action),
     ) -> Result<bool, MotionError> {
-        if let Some(action) = self.update_event(event, runtime)? {
+        if let Some(action) = self.update_event(event, cx)? {
             on_action(action);
             Ok(true)
         } else {
@@ -392,18 +398,18 @@ impl Button {
     }
 
     /// Returns a rendering snapshot without exposing internal state.
-    pub fn snapshot(
-        &self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
-    ) -> Result<ButtonSnapshot, MotionError> {
+    pub fn snapshot(&self, cx: &ComponentViewCx<'_>) -> Result<ButtonSnapshot, MotionError> {
         let style_state = self.state.style_state();
 
         Ok(ButtonSnapshot {
             variant: self.variant,
             style_state,
-            style: ButtonResolvedStyle::from_component_context(context, self.variant, style_state),
-            motion: self.motion_value(runtime)?,
+            style: ButtonResolvedStyle::from_component_context(
+                cx.context(),
+                self.variant,
+                style_state,
+            ),
+            motion: self.motion_value(cx.runtime)?,
             focused: self.state.is_focused(),
             disabled: self.state.is_disabled(),
         })
@@ -448,4 +454,8 @@ impl Button {
     fn target_motion(&self) -> ButtonMotion {
         self.state.target_motion()
     }
+}
+
+fn interaction_timing(context: &ComponentContext) -> Timing {
+    reduce_timing(Timing::ease_out(200.0), context.reduce_motion())
 }

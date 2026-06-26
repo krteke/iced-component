@@ -2,7 +2,7 @@
 
 mod source;
 
-use aura_anim_core::{MotionError, MotionRuntime};
+use aura_anim::prelude::{MotionError, MotionRuntime};
 use iced::{Length, widget::svg};
 use spectrum_theme::iced::IcedColorAdapter;
 use std::borrow::Cow;
@@ -15,7 +15,7 @@ use crate::{
         Button, ButtonEvent, ButtonInteraction, ButtonRole, ButtonShape, ButtonSnapshot,
         ButtonTreatment, ButtonVariant, ButtonView, view::ResolvedButtonLayout,
     },
-    component::ComponentContext,
+    component::{ComponentUpdateCx, ComponentViewCx},
 };
 
 /// Icon button control size.
@@ -244,54 +244,50 @@ impl IconButton {
     }
 
     /// Registers the inner button motion handle in the application runtime.
-    pub fn register(&mut self, runtime: &mut MotionRuntime, context: &ComponentContext) {
-        self.button.register(runtime, context);
+    pub fn register(&mut self, runtime: &mut MotionRuntime) {
+        self.button.register(runtime);
     }
 
     /// Applies an interaction to the inner button.
     pub fn update(
         &mut self,
         interaction: ButtonInteraction,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        self.button.update(interaction, runtime)
+        self.button.update(interaction, cx)
     }
 
     /// Applies a button event and returns its application action, if any.
     pub fn update_event<Action>(
         &mut self,
         event: ButtonEvent<Action>,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<Option<Action>, MotionError> {
-        self.button.update_event(event, runtime)
+        self.button.update_event(event, cx)
     }
 
     /// Applies a button event and invokes `on_action` when release yields an action.
     pub fn update_event_with<Action>(
         &mut self,
         event: ButtonEvent<Action>,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
         on_action: impl FnOnce(Action),
     ) -> Result<bool, MotionError> {
-        self.button.update_event_with(event, runtime, on_action)
+        self.button.update_event_with(event, cx, on_action)
     }
 
     /// Enables or disables this icon button and updates its motion target.
     pub fn set_disabled(
         &mut self,
         disabled: bool,
-        runtime: &mut MotionRuntime,
+        cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        self.button.set_disabled(disabled, runtime)
+        self.button.set_disabled(disabled, cx)
     }
 
     /// Returns a rendering snapshot of the inner button.
-    pub fn snapshot(
-        &self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
-    ) -> Result<ButtonSnapshot, MotionError> {
-        self.button.snapshot(runtime, context)
+    pub fn snapshot(&self, cx: &ComponentViewCx<'_>) -> Result<ButtonSnapshot, MotionError> {
+        self.button.snapshot(cx)
     }
 
     /// Returns this icon button visual variant.
@@ -345,22 +341,18 @@ impl IconButton {
 impl IconButton {
     /// Builds an Iced view for this icon button.
     #[must_use]
-    pub fn view<'a, Message>(
-        &'a self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
-    ) -> ButtonView<'a, Message>
+    pub fn view<'a, Message>(&'a self, cx: &ComponentViewCx<'_>) -> ButtonView<'a, Message>
     where
         Message: Clone + 'a,
     {
-        let metrics = &context.theme().theme().control.icon_button;
+        let metrics = &cx.context().theme().theme().control.icon_button;
         let size = match self.size {
             IconButtonSize::Default => metrics.size.value(),
             IconButtonSize::Fixed(size) => size,
         };
         let snapshot = self
             .button
-            .snapshot(runtime, context)
+            .snapshot(cx)
             .expect("button motion handle belongs to the provided runtime");
         let icon = self.icon_element(metrics.icon_size.value(), snapshot.style.foreground.color());
 
@@ -401,7 +393,7 @@ impl IconButton {
 
 #[cfg(test)]
 mod tests {
-    use aura_anim_core::MotionRuntime;
+    use aura_anim::prelude::*;
 
     use crate::{
         button::{
@@ -409,7 +401,7 @@ mod tests {
             ButtonTreatment, ButtonVariant,
             icon::{IconButton, IconButtonSize, source::IconSource},
         },
-        component::ComponentContext,
+        component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
     };
 
     const TEST_ICON: &[u8] = br#"<svg viewBox="0 0 16 16"><path d="M3 8h10v2H3z"/></svg>"#;
@@ -435,24 +427,30 @@ mod tests {
     #[test]
     fn icon_button_delegates_interaction_state() {
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let mut context = ComponentContext::adwaita();
         let mut icon = IconButton::svg_bytes(TEST_ICON);
 
-        icon.update(ButtonInteraction::HoverEnter, &mut runtime)
-            .unwrap();
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            icon.update(ButtonInteraction::HoverEnter, &mut cx).unwrap();
+        }
 
-        let snapshot = icon.snapshot(&runtime, &context).unwrap();
+        let cx = ComponentViewCx::new(&runtime, &context);
+        let snapshot = icon.snapshot(&cx).unwrap();
         assert_eq!(snapshot.style_state, ButtonStyleState::Hovered);
     }
 
     #[test]
     fn icon_button_delegates_press_events() {
         let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
         let mut icon = IconButton::svg_bytes(TEST_ICON);
 
-        let action = icon
-            .update_event(ButtonEvent::Pressed("open"), &mut runtime)
-            .unwrap();
+        let action = {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            icon.update_event(ButtonEvent::Pressed("open"), &mut cx)
+                .unwrap()
+        };
 
         assert_eq!(action, Some("open"));
     }
@@ -510,10 +508,11 @@ mod tests {
         use iced::Element;
 
         let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::adwaita();
+        let cx = ComponentViewCx::new(&runtime, &context);
         let icon = IconButton::svg_bytes(TEST_ICON);
 
-        let view = icon.view(&runtime, &context).connect((), |_| ());
+        let view = icon.view(&cx).connect((), |_| ());
         let _element: Element<'_, ()> = view.into();
     }
 }

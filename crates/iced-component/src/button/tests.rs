@@ -1,4 +1,4 @@
-use aura_anim_core::{MotionRuntime, timing::Duration};
+use aura_anim::prelude::*;
 use float_cmp::assert_approx_eq;
 
 use crate::{
@@ -6,8 +6,7 @@ use crate::{
         Button, ButtonContent, ButtonRole, ButtonShape, ButtonStyleState, ButtonTreatment,
         ButtonVariant,
     },
-    component::ComponentContext,
-    motion::{MotionSpeed, MotionTokens, MotionTransition},
+    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
 };
 
 use super::{ButtonEvent, ButtonInteraction, ButtonMotion};
@@ -15,11 +14,15 @@ use super::{ButtonEvent, ButtonInteraction, ButtonMotion};
 #[test]
 fn interaction_before_registration_updates_target_without_runtime_motion() {
     let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
 
-    let changed = button
-        .update(ButtonInteraction::HoverEnter, &mut runtime)
-        .unwrap();
+    let changed = {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap()
+    };
 
     assert!(!changed);
     assert_eq!(runtime.motion_count(), 0);
@@ -38,13 +41,16 @@ fn interaction_before_registration_updates_target_without_runtime_motion() {
 #[test]
 fn registered_hover_transitions_runtime_motion() {
     let mut runtime = MotionRuntime::new();
-    let context = ComponentContext::current();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::suggested("Save");
 
-    button.register(&mut runtime, &context);
-    let changed = button
-        .update(ButtonInteraction::HoverEnter, &mut runtime)
-        .unwrap();
+    button.register(&mut runtime);
+    let changed = {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap()
+    };
     runtime.tick(Duration::from_millis(200.0));
 
     assert!(changed);
@@ -54,22 +60,49 @@ fn registered_hover_transitions_runtime_motion() {
 }
 
 #[test]
-fn register_uses_context_interaction_motion_token() {
+fn update_respects_context_reduced_motion() {
     let mut runtime = MotionRuntime::new();
-    let context = ComponentContext::current().with_motion_tokens(MotionTokens {
-        interaction: MotionTransition::new(MotionSpeed::Fast, iced::animation::Easing::Linear),
-        fast: Duration::from_millis(40.0),
-        ..MotionTokens::default()
-    });
+    let mut context = ComponentContext::adwaita().with_reduce_motion(true);
     let mut button = Button::suggested("Save");
 
-    button.register(&mut runtime, &context);
-    button
-        .update(ButtonInteraction::HoverEnter, &mut runtime)
-        .unwrap();
-    runtime.tick(Duration::from_millis(40.0));
+    button.register(&mut runtime);
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+    }
+    runtime.tick(Duration::from_millis(1.0));
 
     assert_approx_eq!(f32, button.motion_value(&runtime).unwrap().shadow_y, 1.2);
+}
+
+#[test]
+fn reduce_motion_is_scoped_to_component_context() {
+    let mut runtime = MotionRuntime::new();
+    let mut reduced_context = ComponentContext::adwaita().with_reduce_motion(true);
+    let mut regular_context = ComponentContext::adwaita();
+    let mut reduced = Button::suggested("Reduced");
+    let mut regular = Button::suggested("Regular");
+
+    reduced.register(&mut runtime);
+    regular.register(&mut runtime);
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut reduced_context);
+        reduced
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+    }
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut regular_context);
+        regular
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+    }
+    runtime.tick(Duration::from_millis(1.0));
+
+    assert_approx_eq!(f32, reduced.motion_value(&runtime).unwrap().shadow_y, 1.2);
+    assert!(regular.motion_value(&runtime).unwrap().shadow_y < 1.2);
 }
 
 #[test]
@@ -94,16 +127,19 @@ fn builders_update_role_and_appearance() {
 #[test]
 fn disabled_button_ignores_press_down() {
     let mut runtime = MotionRuntime::new();
-    let context = ComponentContext::current();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
 
-    button.register(&mut runtime, &context);
-    button
-        .update(ButtonInteraction::SetDisabled(true), &mut runtime)
-        .unwrap();
-    button
-        .update(ButtonInteraction::PressDown, &mut runtime)
-        .unwrap();
+    button.register(&mut runtime);
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::SetDisabled(true), &mut cx)
+            .unwrap();
+        button
+            .update(ButtonInteraction::PressDown, &mut cx)
+            .unwrap();
+    }
     runtime.tick(Duration::from_millis(200.0));
 
     let motion = button.motion_value(&runtime).unwrap();
@@ -114,13 +150,16 @@ fn disabled_button_ignores_press_down() {
 #[test]
 fn set_disabled_updates_button_state() {
     let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
 
-    button.set_disabled(true, &mut runtime).unwrap();
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.set_disabled(true, &mut cx).unwrap();
+    }
 
-    let snapshot = button
-        .snapshot(&runtime, &ComponentContext::current())
-        .unwrap();
+    let cx = ComponentViewCx::new(&runtime, &context);
+    let snapshot = button.snapshot(&cx).unwrap();
     assert!(snapshot.disabled);
     assert_eq!(snapshot.style_state, ButtonStyleState::Disabled);
 }
@@ -128,21 +167,23 @@ fn set_disabled_updates_button_state() {
 #[test]
 fn pressed_event_releases_button_and_returns_action() {
     let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
 
-    button
-        .update(ButtonInteraction::PressDown, &mut runtime)
-        .unwrap();
-    let action = button
-        .update_event(ButtonEvent::Pressed("save"), &mut runtime)
-        .unwrap();
+    let action = {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::PressDown, &mut cx)
+            .unwrap();
+        button
+            .update_event(ButtonEvent::Pressed("save"), &mut cx)
+            .unwrap()
+    };
 
     assert_eq!(action, Some("save"));
+    let cx = ComponentViewCx::new(&runtime, &context);
     assert_eq!(
-        button
-            .snapshot(&runtime, &ComponentContext::current())
-            .unwrap()
-            .style_state,
+        button.snapshot(&cx).unwrap().style_state,
         ButtonStyleState::Idle
     );
 }
@@ -150,23 +191,25 @@ fn pressed_event_releases_button_and_returns_action() {
 #[test]
 fn pressed_event_returns_to_hovered_when_pointer_is_inside() {
     let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
 
-    button
-        .update(ButtonInteraction::HoverEnter, &mut runtime)
-        .unwrap();
-    button
-        .update(ButtonInteraction::PressDown, &mut runtime)
-        .unwrap();
-    button
-        .update_event(ButtonEvent::Pressed("save"), &mut runtime)
-        .unwrap();
-
-    assert_eq!(
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
         button
-            .snapshot(&runtime, &ComponentContext::current())
-            .unwrap()
-            .style_state,
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+        button
+            .update(ButtonInteraction::PressDown, &mut cx)
+            .unwrap();
+        button
+            .update_event(ButtonEvent::Pressed("save"), &mut cx)
+            .unwrap();
+    }
+
+    let cx = ComponentViewCx::new(&runtime, &context);
+    assert_eq!(
+        button.snapshot(&cx).unwrap().style_state,
         ButtonStyleState::Hovered
     );
 }
@@ -174,25 +217,30 @@ fn pressed_event_returns_to_hovered_when_pointer_is_inside() {
 #[test]
 fn update_event_with_invokes_action_only_for_pressed_event() {
     let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
     let mut action_count = 0;
 
-    let handled = button
-        .update_event_with(
+    let handled = {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.update_event_with(
             ButtonEvent::Interaction(ButtonInteraction::HoverEnter),
-            &mut runtime,
+            &mut cx,
             |()| action_count += 1,
         )
-        .unwrap();
+    }
+    .unwrap();
 
     assert!(!handled);
     assert_eq!(action_count, 0);
 
-    let handled = button
-        .update_event_with(ButtonEvent::Pressed(()), &mut runtime, |()| {
+    let handled = {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.update_event_with(ButtonEvent::Pressed(()), &mut cx, |()| {
             action_count += 1;
         })
-        .unwrap();
+    }
+    .unwrap();
 
     assert!(handled);
     assert_eq!(action_count, 1);
@@ -201,17 +249,20 @@ fn update_event_with_invokes_action_only_for_pressed_event() {
 #[test]
 fn update_event_with_ignores_pressed_action_when_disabled() {
     let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
     let mut action_count = 0;
 
-    button
-        .update(ButtonInteraction::SetDisabled(true), &mut runtime)
-        .unwrap();
-    let handled = button
-        .update_event_with(ButtonEvent::Pressed(()), &mut runtime, |()| {
+    let handled = {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::SetDisabled(true), &mut cx)
+            .unwrap();
+        button.update_event_with(ButtonEvent::Pressed(()), &mut cx, |()| {
             action_count += 1;
         })
-        .unwrap();
+    }
+    .unwrap();
 
     assert!(!handled);
     assert_eq!(action_count, 0);
@@ -220,16 +271,20 @@ fn update_event_with_ignores_pressed_action_when_disabled() {
 #[test]
 fn snapshot_combines_style_and_motion() {
     let mut runtime = MotionRuntime::new();
-    let context = ComponentContext::current();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::suggested("Save");
 
-    button.register(&mut runtime, &context);
-    button
-        .update(ButtonInteraction::PressDown, &mut runtime)
-        .unwrap();
+    button.register(&mut runtime);
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::PressDown, &mut cx)
+            .unwrap();
+    }
     runtime.tick(Duration::from_millis(200.0));
 
-    let snapshot = button.snapshot(&runtime, &context).unwrap();
+    let cx = ComponentViewCx::new(&runtime, &context);
+    let snapshot = button.snapshot(&cx).unwrap();
 
     assert_eq!(snapshot.variant, ButtonVariant::SUGGESTED);
     assert_eq!(snapshot.style_state, ButtonStyleState::Pressed);
@@ -243,17 +298,19 @@ fn snapshot_combines_style_and_motion() {
 #[test]
 fn snapshot_reports_focus_and_disabled_state() {
     let mut runtime = MotionRuntime::new();
-    let context = ComponentContext::current();
+    let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
 
-    button
-        .update(ButtonInteraction::Focus, &mut runtime)
-        .unwrap();
-    button
-        .update(ButtonInteraction::SetDisabled(true), &mut runtime)
-        .unwrap();
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.update(ButtonInteraction::Focus, &mut cx).unwrap();
+        button
+            .update(ButtonInteraction::SetDisabled(true), &mut cx)
+            .unwrap();
+    }
 
-    let snapshot = button.snapshot(&runtime, &context).unwrap();
+    let cx = ComponentViewCx::new(&runtime, &context);
+    let snapshot = button.snapshot(&cx).unwrap();
 
     assert!(snapshot.focused);
     assert!(snapshot.disabled);

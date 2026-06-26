@@ -1,4 +1,4 @@
-use aura_anim_core::Animatable;
+use aura_anim::prelude::Animatable;
 
 /// Animatable visual values for an animated button.
 #[derive(Clone, Copy, Debug, PartialEq, Animatable)]

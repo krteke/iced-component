@@ -579,7 +579,7 @@ mod tests {
     #[test]
     fn resolved_button_style_uses_component_context() {
         let scoped_bg = Color::new(221, 238, 255);
-        let context = ComponentContext::current()
+        let context = ComponentContext::adwaita()
             .scoped_theme(|theme| theme.button.standard.filled.hover.bg = scoped_bg);
 
         let style = ButtonResolvedStyle::from_component_context(

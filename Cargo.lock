@@ -245,21 +245,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "aura-anim"
+version = "0.3.0"
+source = "git+https://github.com/krteke/aura-anim-iced#5a6825ec416283ad88829dfb76aa9d02840687e3"
+dependencies = [
+ "aura-anim-core",
+ "aura-anim-iced",
+]
+
+[[package]]
 name = "aura-anim-core"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6fff72aad72bbb61d96e0cc6b69f37573429cccbfba9890d2cf5129f4050237"
+source = "git+https://github.com/krteke/aura-anim-iced#5a6825ec416283ad88829dfb76aa9d02840687e3"
 dependencies = [
  "aura-anim-macros",
+ "iced_core",
  "lilt",
  "thiserror 2.0.18",
 ]
 
 [[package]]
+name = "aura-anim-iced"
+version = "0.3.0"
+source = "git+https://github.com/krteke/aura-anim-iced#5a6825ec416283ad88829dfb76aa9d02840687e3"
+dependencies = [
+ "aura-anim-core",
+ "iced",
+]
+
+[[package]]
 name = "aura-anim-macros"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cf7d21f9672c1e2eae3811808cffd3cf9460f0378b0d70e1318b75b8f07d9fd"
+source = "git+https://github.com/krteke/aura-anim-iced#5a6825ec416283ad88829dfb76aa9d02840687e3"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1277,7 +1294,7 @@ dependencies = [
 name = "iced-component"
 version = "0.1.0"
 dependencies = [
- "aura-anim-core",
+ "aura-anim",
  "float-cmp 0.10.0",
  "iced",
  "spectrum-resolver",

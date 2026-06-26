@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-aura-anim-core.workspace = true
+aura-anim.workspace = true
 iced = { workspace = true, features = ["svg"] }
 spectrum-theme = { workspace = true, features = ["macros", "iced"] }
 spectrum-schema.workspace = true

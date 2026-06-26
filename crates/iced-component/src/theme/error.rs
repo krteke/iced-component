@@ -14,4 +14,7 @@ pub enum ThemeLoadError {
     /// Typed token construction failed.
     #[error("failed to build typed theme: {0}")]
     Build(#[from] ThemeBuildError),
+    /// Failed to load theme from file.
+    #[error("failed to load theme from file: {0}")]
+    Load(#[from] std::io::Error),
 }

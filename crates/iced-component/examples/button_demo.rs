@@ -4,10 +4,9 @@ use std::time::Duration;
 
 use iced::widget::{column, container, row, text};
 use iced::{Element, Fill, Subscription, Task, Theme, application, time};
+use iced_component::anim::MotionRuntime;
 use iced_component::button::{Button, ButtonEvent, IconButton, IconSource};
-use iced_component::component::ComponentContext;
-use iced_component::motion::{MotionPreferences, MotionPreferencesController};
-use iced_component::{MotionError, MotionRuntime};
+use iced_component::component::{ComponentContext, ComponentUpdateCx, ComponentViewCx};
 
 const MOTION_ICON: &[u8] = br#"
 <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
@@ -27,7 +26,6 @@ fn main() -> iced::Result {
 struct Demo {
     runtime: MotionRuntime,
     context: ComponentContext,
-    reduce_motion: MotionPreferencesController,
     save_button: Button,
     reset_button: Button,
     motion_button: IconButton,
@@ -60,21 +58,19 @@ enum MotionAction {
 
 impl Demo {
     fn new() -> Self {
-        let (preferences, reduce_motion) = MotionPreferences::new(false);
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current().with_motion_preferences(preferences);
+        let context = ComponentContext::default();
         let mut save_button = Button::suggested("Save 0");
         let mut reset_button = Button::standard("Reset").flat();
         let mut motion_button = IconButton::suggested(IconSource::svg_static(MOTION_ICON));
 
-        save_button.register(&mut runtime, &context);
-        reset_button.register(&mut runtime, &context);
-        motion_button.register(&mut runtime, &context);
+        save_button.register(&mut runtime);
+        reset_button.register(&mut runtime);
+        motion_button.register(&mut runtime);
 
         Self {
             runtime,
             context,
-            reduce_motion,
             save_button,
             reset_button,
             motion_button,
@@ -84,76 +80,67 @@ impl Demo {
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
+        let mut cx = ComponentUpdateCx::new(&mut self.runtime, &mut self.context);
+
         match message {
             Message::Tick => {
                 self.runtime
                     .tick(iced_component::motion::Duration::from_millis(16.0));
             }
-            Message::SaveButton(event) => {
-                let result = self.save_button.update_event_with(
-                    event,
-                    &mut self.runtime,
-                    |SaveAction::Save| {
-                        self.clicks += 1;
-                    },
-                );
-                let handled = matches!(result, Ok(true));
-                record_motion_result(self, result);
-                if handled {
+            Message::SaveButton(event) => match self.save_button.update_event(event, &mut cx) {
+                Ok(Some(SaveAction::Save)) => {
+                    self.motion_error = None;
+                    self.clicks += 1;
                     self.save_button
                         .set_content(format!("Save {}", self.clicks));
                 }
-            }
-            Message::ResetButton(event) => {
-                let result = self.reset_button.update_event_with(
-                    event,
-                    &mut self.runtime,
-                    |ResetAction::Reset| {
-                        self.clicks = 0;
-                    },
-                );
-                let handled = matches!(result, Ok(true));
-                record_motion_result(self, result);
-                if handled {
+                Ok(None) => self.motion_error = None,
+                Err(error) => self.motion_error = Some(error.to_string()),
+            },
+            Message::ResetButton(event) => match self.reset_button.update_event(event, &mut cx) {
+                Ok(Some(ResetAction::Reset)) => {
+                    self.motion_error = None;
+                    self.clicks = 0;
                     self.save_button.set_content("Save 0");
                 }
-            }
-            Message::MotionButton(event) => {
-                let result = self.motion_button.update_event_with(
-                    event,
-                    &mut self.runtime,
-                    |MotionAction::Toggle| {
-                        let next = !self.reduce_motion.reduce_motion();
-                        self.reduce_motion.set_reduce_motion(next);
-                    },
-                );
-                record_motion_result(self, result);
-            }
+                Ok(None) => self.motion_error = None,
+                Err(error) => self.motion_error = Some(error.to_string()),
+            },
+            Message::MotionButton(event) => match self.motion_button.update_event(event, &mut cx) {
+                Ok(Some(MotionAction::Toggle)) => {
+                    self.motion_error = None;
+                    self.context
+                        .set_reduce_motion(!self.context.reduce_motion());
+                }
+                Ok(None) => self.motion_error = None,
+                Err(error) => self.motion_error = Some(error.to_string()),
+            },
         }
 
         Task::none()
     }
 
     fn view(&self) -> Element<'_, Message> {
+        let cx = ComponentViewCx::new(&self.runtime, &self.context);
         let save = self
             .save_button
-            .view(&self.runtime, &self.context)
+            .view(&cx)
             .connect(SaveAction::Save, Message::SaveButton);
         let reset = self
             .reset_button
-            .view(&self.runtime, &self.context)
+            .view(&cx)
             .connect(ResetAction::Reset, Message::ResetButton);
         let motion = self
             .motion_button
-            .view(&self.runtime, &self.context)
+            .view(&cx)
             .connect(MotionAction::Toggle, Message::MotionButton);
 
         let snapshot = self
             .save_button
-            .snapshot(&self.runtime, &self.context)
+            .snapshot(&cx)
             .expect("button motion handle belongs to the demo runtime");
 
-        let reduce_label = if self.reduce_motion.reduce_motion() {
+        let reduce_label = if self.context.reduce_motion() {
             "Reduce motion: on"
         } else {
             "Reduce motion: off"
@@ -177,13 +164,6 @@ impl Demo {
             .center_x(Fill)
             .center_y(Fill)
             .into()
-    }
-}
-
-fn record_motion_result(state: &mut Demo, result: Result<bool, MotionError>) {
-    match result {
-        Ok(_) => state.motion_error = None,
-        Err(error) => state.motion_error = Some(error.to_string()),
     }
 }
 

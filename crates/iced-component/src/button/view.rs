@@ -1,12 +1,12 @@
 //! View builder for [`Button`] using Iced.
 
+use aura_anim::prelude::MotionError;
 use iced::widget::{button, container, mouse_area, text};
 use iced::{Background, Border, Color, Element, Length, Shadow, Vector};
 use spectrum_theme::iced::{IcedColorAdapter, IcedRadiusAdapter, IcedShadowAdapter};
 
 use super::{Button, ButtonEvent, ButtonInteraction, ButtonSnapshot};
-use crate::component::ComponentContext;
-use crate::{MotionError, MotionRuntime};
+use crate::component::ComponentViewCx;
 
 /// Iced view builder for [`Button`].
 pub struct ButtonView<'a, Message, Action = ()> {
@@ -51,31 +51,26 @@ impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
 impl Button {
     /// Builds an Iced view for this button.
     #[must_use]
-    pub fn view<'a, Message>(
-        &'a self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
-    ) -> ButtonView<'a, Message>
+    pub fn view<'a, Message>(&'a self, cx: &ComponentViewCx<'_>) -> ButtonView<'a, Message>
     where
         Message: Clone + 'a,
     {
-        self.try_view(runtime, context)
+        self.try_view(cx)
             .expect("button motion handle belongs to the provided runtime")
     }
 
     /// Tries to build an Iced view for this button.
     pub fn try_view<'a, Message>(
         &'a self,
-        runtime: &MotionRuntime,
-        context: &ComponentContext,
+        cx: &ComponentViewCx<'_>,
     ) -> Result<ButtonView<'a, Message>, MotionError>
     where
         Message: Clone + 'a,
     {
         Ok(ButtonView::from_parts(
-            self.snapshot(runtime, context)?,
+            self.snapshot(cx)?,
             button_content(self),
-            self.layout.resolve(context),
+            self.layout.resolve(cx.context()),
         ))
     }
 }
@@ -216,12 +211,12 @@ fn color_with_alpha(color: Color, alpha_multiplier: f32) -> Color {
 
 #[cfg(test)]
 mod tests {
-    use aura_anim_core::MotionRuntime;
+    use aura_anim::prelude::*;
     use iced::Element;
 
     use crate::{
         button::{Button, ButtonEvent, ButtonInteraction},
-        component::ComponentContext,
+        component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
     };
 
     use super::button_style;
@@ -229,14 +224,18 @@ mod tests {
     #[test]
     fn button_style_uses_snapshot_motion() {
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let mut context = ComponentContext::adwaita();
         let mut button = Button::standard("Save");
 
-        button
-            .update(ButtonInteraction::SetDisabled(true), &mut runtime)
-            .unwrap();
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            button
+                .update(ButtonInteraction::SetDisabled(true), &mut cx)
+                .unwrap();
+        }
 
-        let snapshot = button.snapshot(&runtime, &context).unwrap();
+        let cx = ComponentViewCx::new(&runtime, &context);
+        let snapshot = button.snapshot(&cx).unwrap();
         let style = button_style(snapshot);
 
         let Some(iced::Background::Color(background)) = style.background else {
@@ -260,11 +259,10 @@ mod tests {
         }
 
         let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::adwaita();
+        let cx = ComponentViewCx::new(&runtime, &context);
         let button = Button::suggested("Save");
-        let view = button
-            .view(&runtime, &context)
-            .connect(Action::Save, Message::Button);
+        let view = button.view(&cx).connect(Action::Save, Message::Button);
         let _element: Element<'_, Message> = view.into();
 
         let Message::Button(event) = Message::Button(ButtonEvent::Pressed(Action::Save));
@@ -277,14 +275,18 @@ mod tests {
         enum Message {}
 
         let mut runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let mut context = ComponentContext::adwaita();
         let mut button = Button::suggested("Save");
 
-        button
-            .update(ButtonInteraction::SetDisabled(true), &mut runtime)
-            .unwrap();
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            button
+                .update(ButtonInteraction::SetDisabled(true), &mut cx)
+                .unwrap();
+        }
 
-        let view = button.view(&runtime, &context);
+        let cx = ComponentViewCx::new(&runtime, &context);
+        let view = button.view(&cx);
         let _element: Element<'_, Message> = view.into();
     }
 
@@ -294,10 +296,11 @@ mod tests {
         enum Message {}
 
         let runtime = MotionRuntime::new();
-        let context = ComponentContext::current();
+        let context = ComponentContext::adwaita();
+        let cx = ComponentViewCx::new(&runtime, &context);
         let button = Button::suggested("Save");
 
-        let view = button.view(&runtime, &context);
+        let view = button.view(&cx);
         let _element: Element<'_, Message> = view.into();
     }
 }
