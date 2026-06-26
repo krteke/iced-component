@@ -18,8 +18,7 @@ use iced::Length;
 
 use crate::{
     button::state::ButtonState,
-    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot},
-    motion::reduce_timing,
+    component::{ComponentUpdateCx, ComponentViewCx, MotionSlot},
 };
 
 pub use animated::{ButtonEvent, ButtonInteraction, ButtonSnapshot};
@@ -346,9 +345,9 @@ impl Button {
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         self.state.apply(interaction);
-        let timing = interaction_timing(cx.context());
+
         self.motion
-            .tween_to(self.target_motion(), timing, cx.runtime)
+            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
     }
 
     /// Enables or disables this button and updates its motion target.
@@ -367,9 +366,8 @@ impl Button {
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<Option<Action>, MotionError> {
         let action = self.state.apply_event(event);
-        let timing = interaction_timing(cx.context());
         self.motion
-            .tween_to(self.target_motion(), timing, cx.runtime)?;
+            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)?;
         Ok(action)
     }
 
@@ -456,6 +454,6 @@ impl Button {
     }
 }
 
-fn interaction_timing(context: &ComponentContext) -> Timing {
-    reduce_timing(Timing::ease_out(200.0), context.reduce_motion())
+fn interaction_timing() -> Timing {
+    Timing::ease_out(200.0)
 }

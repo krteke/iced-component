@@ -7,8 +7,7 @@ use aura_anim::prelude::{MotionError, MotionRuntime, Timing};
 use iced::Length;
 
 use crate::{
-    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot},
-    motion::reduce_timing,
+    component::{ComponentUpdateCx, ComponentViewCx, MotionSlot},
     theme::{SurfaceRole, SurfaceStyleTokens},
 };
 
@@ -195,9 +194,8 @@ impl Surface {
             SurfaceInteraction::HoverExit => self.hovered = false,
         }
 
-        let timing = interaction_timing(cx.context());
         self.motion
-            .tween_to(self.target_motion(), timing, cx.runtime)
+            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
     }
 
     /// Sets the surface role and transitions motion when registered.
@@ -207,9 +205,9 @@ impl Surface {
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         self.role = role;
-        let timing = interaction_timing(cx.context());
+
         self.motion
-            .tween_to(self.target_motion(), timing, cx.runtime)
+            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
     }
 
     /// Applies a surface event.
@@ -269,8 +267,8 @@ impl Surface {
     }
 }
 
-fn interaction_timing(context: &ComponentContext) -> Timing {
-    reduce_timing(Timing::ease_out(200.0), context.reduce_motion())
+fn interaction_timing() -> Timing {
+    Timing::ease_out(200.0)
 }
 
 #[cfg(test)]

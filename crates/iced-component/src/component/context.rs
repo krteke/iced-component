@@ -125,6 +125,12 @@ impl<'a> ComponentUpdateCx<'a> {
     pub fn context_mut(&mut self) -> &mut ComponentContext {
         self.context
     }
+
+    /// Returns whether motion is reduced.
+    #[must_use]
+    pub fn reduce_motion(&self) -> bool {
+        self.context.reduce_motion
+    }
 }
 
 /// Read-only inputs used while rendering component views.

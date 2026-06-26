@@ -63,6 +63,26 @@ impl<T: Animatable> MotionSlot<T> {
         Ok(true)
     }
 
+    /// Plays a tween and immediately finishes it when reduced motion is enabled.
+    ///
+    /// Finishing the real animation keeps playback completion semantics owned by
+    /// `aura-anim`, including direction, iteration, spring, and sequence rules.
+    pub fn tween_to_or_finish(
+        &mut self,
+        target: T,
+        timing: Timing,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        let Some(motion) = self.motion else {
+            self.initial = target;
+            return Ok(false);
+        };
+
+        motion.play(tween_to(target, timing), cx.runtime)?;
+        finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
+        Ok(true)
+    }
+
     /// Returns the registered motion handle, if registration happened.
     #[must_use]
     pub fn motion(&self) -> Option<Motion<T>> {
@@ -123,6 +143,26 @@ impl<T: Animatable> MotionSlot<T> {
         Ok(true)
     }
 
+    /// Replaces the current animation and immediately finishes it when reduced motion is enabled.
+    ///
+    /// Returns `Ok(false)` when called before registration.
+    pub fn play_or_finish<P, Kind>(
+        &self,
+        playback: P,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError>
+    where
+        P: IntoMotionAnimation<T, Kind>,
+    {
+        let Some(motion) = self.motion else {
+            return Ok(false);
+        };
+
+        motion.play(playback, cx.runtime)?;
+        finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
+        Ok(true)
+    }
+
     /// Replaces the registered motion's current animation and returns its playback ID.
     ///
     /// Returns `Ok(None)` when called before registration.
@@ -141,6 +181,26 @@ impl<T: Animatable> MotionSlot<T> {
         motion.play_tracked(playback, runtime).map(Some)
     }
 
+    /// Replaces the current animation, returns its playback ID, and optionally finishes it.
+    ///
+    /// Returns `Ok(None)` when called before registration.
+    pub fn play_tracked_or_finish<P, Kind>(
+        &self,
+        playback: P,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<Option<PlaybackId>, MotionError>
+    where
+        P: IntoMotionAnimation<T, Kind>,
+    {
+        let Some(motion) = self.motion else {
+            return Ok(None);
+        };
+
+        let playback = motion.play_tracked(playback, cx.runtime)?;
+        finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
+        Ok(Some(playback))
+    }
+
     /// Borrows the current runtime value when registered.
     pub fn value<'a>(&self, runtime: &'a MotionRuntime) -> Result<Option<&'a T>, MotionError> {
         self.motion
@@ -149,10 +209,24 @@ impl<T: Animatable> MotionSlot<T> {
     }
 }
 
+fn finish_if_reduced<T: Animatable>(
+    motion: Motion<T>,
+    reduce_motion: bool,
+    runtime: &mut MotionRuntime,
+) -> Result<(), MotionError> {
+    if reduce_motion {
+        motion.finish(runtime)?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use aura_anim::prelude::*;
     use float_cmp::assert_approx_eq;
+
+    use crate::component::{ComponentContext, ComponentUpdateCx};
 
     use super::MotionSlot;
 
@@ -212,6 +286,42 @@ mod tests {
 
         assert!(played);
         assert_eq!(motion.value(&runtime).unwrap().copied(), Some(1.0));
+    }
+
+    #[test]
+    fn reduced_tween_finishes_registered_motion_immediately() {
+        let mut runtime = MotionRuntime::new();
+        let mut motion = MotionSlot::new(0.0_f32);
+        let _ = motion.register(&mut runtime);
+
+        let mut context = ComponentContext::default().with_reduce_motion(true);
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+
+        let played = motion
+            .tween_to_or_finish(1.0, Timing::linear(100.0), &mut cx)
+            .unwrap();
+
+        assert!(played);
+        assert_eq!(motion.value(&runtime).unwrap().copied(), Some(1.0));
+    }
+
+    #[test]
+    fn reduced_tracked_play_finishes_with_completed_playback_event() {
+        let mut runtime = MotionRuntime::new();
+        let mut motion = MotionSlot::new(0.0_f32);
+        let handle = motion.register(&mut runtime);
+
+        let mut context = ComponentContext::default().with_reduce_motion(true);
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+
+        let playback = motion
+            .play_tracked_or_finish(Tween::between(0.0, 1.0, Timing::linear(100.0)), &mut cx)
+            .unwrap()
+            .expect("registered motion should start tracked playback");
+
+        assert_eq!(handle.playback(&runtime).unwrap(), playback);
+        assert_eq!(motion.value(&runtime).unwrap().copied(), Some(1.0));
+        assert!(runtime.take_events()[0].is_completed_for(playback));
     }
 
     #[test]
