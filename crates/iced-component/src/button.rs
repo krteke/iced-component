@@ -18,7 +18,7 @@ use iced::Length;
 
 use crate::{
     button::state::ButtonState,
-    component::{ComponentUpdateCx, ComponentViewCx, MotionSlot},
+    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot},
 };
 
 pub use animated::{ButtonEvent, ButtonInteraction, ButtonSnapshot};
@@ -49,7 +49,7 @@ impl Button {
             layout: ButtonLayout::default(),
             variant,
             state: ButtonState::default(),
-            motion: MotionSlot::new(ButtonMotion::idle()),
+            motion: MotionSlot::new(),
         }
     }
 
@@ -328,20 +328,21 @@ impl Button {
         self.layout.center_content = center_content;
     }
 
-    /// Registers the button motion handle in the application runtime.
-    pub fn register(&mut self, runtime: &mut MotionRuntime) {
+    /// Registers the button motion handle using the current component context.
+    pub fn register(&mut self, cx: &mut ComponentUpdateCx<'_>) {
         if self.motion.is_registered() {
             return;
         }
 
-        self.motion.set_initial(self.target_motion());
-        let _ = self.motion.register(runtime);
+        let _ = self
+            .motion
+            .register(cx.runtime, self.motion_from_ctx(cx.context()));
     }
 
     /// Synchronizes this button's current motion target with the runtime.
     pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
         self.motion
-            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
+            .tween_to_or_finish(self.motion_from_ctx(cx.context()), interaction_timing(), cx)
     }
 
     /// Applies a button interaction and transitions motion when registered.
@@ -350,9 +351,10 @@ impl Button {
         interaction: ButtonInteraction,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
+        let previous = self.state;
         self.state.apply(interaction);
 
-        self.sync(cx)
+        self.animate_from_state(previous, cx)
     }
 
     /// Enables or disables this button and updates its motion target.
@@ -370,8 +372,9 @@ impl Button {
         event: ButtonEvent<Action>,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<Option<Action>, MotionError> {
+        let previous = self.state;
         let action = self.state.apply_event(event);
-        self.sync(cx)?;
+        self.animate_from_state(previous, cx)?;
         Ok(action)
     }
 
@@ -390,28 +393,36 @@ impl Button {
         }
     }
 
-    /// Returns the current runtime motion value, or the target value before registration.
-    pub fn motion_value(&self, runtime: &MotionRuntime) -> Result<ButtonMotion, MotionError> {
+    /// Returns the current runtime motion value, or `None` if not registered.
+    pub fn motion_value(
+        &self,
+        runtime: &MotionRuntime,
+    ) -> Result<Option<ButtonMotion>, MotionError> {
+        Ok(self.motion.value(runtime)?.copied())
+    }
+
+    fn motion_value_for_context(
+        &self,
+        runtime: &MotionRuntime,
+        context: &ComponentContext,
+    ) -> Result<ButtonMotion, MotionError> {
         Ok(self
             .motion
             .value(runtime)?
             .copied()
-            .unwrap_or_else(|| self.target_motion()))
+            .unwrap_or_else(|| self.motion_from_ctx(context)))
     }
 
     /// Returns a rendering snapshot without exposing internal state.
     pub fn snapshot(&self, cx: &ComponentViewCx<'_>) -> Result<ButtonSnapshot, MotionError> {
         let style_state = self.state.style_state();
+        let motion = self.motion_value_for_context(cx.runtime, cx.context())?;
 
         Ok(ButtonSnapshot {
             variant: self.variant,
             style_state,
-            style: ButtonResolvedStyle::from_component_context(
-                cx.context(),
-                self.variant,
-                style_state,
-            ),
-            motion: self.motion_value(cx.runtime)?,
+            style: ButtonResolvedStyle::from_component_tokens(motion.tokens),
+            motion,
             focused: self.state.is_focused(),
             disabled: self.state.is_disabled(),
         })
@@ -453,8 +464,37 @@ impl Button {
         self.state.style_state()
     }
 
-    fn target_motion(&self) -> ButtonMotion {
-        self.state.target_motion()
+    fn motion_from_ctx(&self, context: &ComponentContext) -> ButtonMotion {
+        self.motion_from_state(context, self.state)
+    }
+
+    fn motion_from_state(&self, context: &ComponentContext, state: ButtonState) -> ButtonMotion {
+        ButtonMotion::from_theme(
+            context.theme().theme(),
+            self.variant,
+            state.style_state(),
+            state.is_focused(),
+        )
+    }
+
+    fn animate_from_state(
+        &mut self,
+        previous: ButtonState,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        if previous == self.state && !self.motion.is_registered() {
+            return Ok(false);
+        }
+
+        let initial = self
+            .motion
+            .value(cx.runtime)?
+            .copied()
+            .unwrap_or_else(|| self.motion_from_state(cx.context(), previous));
+        let target = self.motion_from_ctx(cx.context());
+
+        self.motion
+            .tween_from_to_or_finish(initial, target, interaction_timing(), cx)
     }
 }
 

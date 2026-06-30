@@ -2,7 +2,7 @@
 
 use aura_anim::prelude::MotionError;
 use iced::widget::{button, container, mouse_area, text};
-use iced::{Background, Border, Color, Element, Length, Shadow, Vector};
+use iced::{Background, Border, Color, Element, Length};
 use spectrum_theme::iced::{IcedColorAdapter, IcedRadiusAdapter, IcedShadowAdapter};
 
 use super::{Button, ButtonEvent, ButtonInteraction, ButtonSnapshot};
@@ -174,30 +174,19 @@ pub fn button_style(snapshot: ButtonSnapshot) -> button::Style {
     let style = snapshot.style;
     let motion = snapshot.motion;
 
-    let shadow = Shadow {
-        offset: Vector::new(
-            style.shadow.offset_x().value(),
-            motion.shadow_y * style.shadow.offset_y().value(),
-        ),
-        ..style.shadow.shadow_px()
-    };
-
     button::Style {
-        background: Some(Background::Color(color_with_alpha(
-            style.background.color(),
-            motion.bg_alpha,
-        ))),
+        background: Some(Background::Color(style.background.color())),
         text_color: style.foreground.color(),
         border: Border {
-            color: if motion.focus_alpha > 0.0 {
-                color_with_alpha(style.focus_ring.color(), motion.focus_alpha)
+            color: if motion.focus_ring_alpha > 0.0 {
+                color_with_alpha(style.focus_ring.color(), motion.focus_ring_alpha)
             } else {
                 style.border.color()
             },
-            width: style.border_width.value() + motion.border_glow,
+            width: style.border_width.value() + motion.focus_ring_width,
             radius: style.radius.radius_px(),
         },
-        shadow,
+        shadow: style.shadow.shadow_px(),
         snap: true,
     }
 }
@@ -233,17 +222,20 @@ mod tests {
                 .update(ButtonInteraction::SetDisabled(true), &mut cx)
                 .unwrap();
         }
+        runtime.tick(Duration::from_millis(200.0));
 
         let cx = ComponentViewCx::new(&runtime, &context);
         let snapshot = button.snapshot(&cx).unwrap();
         let style = button_style(snapshot);
 
-        let Some(iced::Background::Color(background)) = style.background else {
+        let Some(iced::Background::Color(_background)) = style.background else {
             panic!("button style should use a solid color background");
         };
 
-        assert!(background.a < 1.0);
+        assert!(style.text_color.a < 1.0);
+        assert!(style.border.color.a < 1.0);
         assert!(style.shadow.offset.y.abs() <= f32::EPSILON);
+        assert!(style.shadow.color.a <= f32::EPSILON);
     }
 
     #[test]

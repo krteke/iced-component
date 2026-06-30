@@ -19,30 +19,31 @@ pub use context::{ComponentContext, ComponentUpdateCx, ComponentViewCx};
 /// application-owned runtime exactly once.
 #[derive(Debug)]
 pub struct MotionSlot<T: Animatable> {
-    initial: T,
     motion: Option<Motion<T>>,
 }
 
 impl<T: Animatable> MotionSlot<T> {
     /// Creates an unregistered component motion slot.
     #[must_use]
-    pub fn new(initial: T) -> Self {
-        Self {
-            initial,
-            motion: None,
-        }
+    pub const fn new() -> Self {
+        Self { motion: None }
     }
 
     /// Registers this slot in the runtime if needed and returns the motion.
-    pub fn register(&mut self, runtime: &mut MotionRuntime) -> Motion<T> {
-        self.register_with(runtime, Timing::default())
+    pub fn register(&mut self, runtime: &mut MotionRuntime, initial: T) -> Motion<T> {
+        self.register_with(runtime, initial, Timing::default())
     }
 
     /// Registers this slot with a fallback timing for direct `transition_to` calls.
-    pub fn register_with(&mut self, runtime: &mut MotionRuntime, timing: Timing) -> Motion<T> {
+    pub fn register_with(
+        &mut self,
+        runtime: &mut MotionRuntime,
+        initial: T,
+        timing: Timing,
+    ) -> Motion<T> {
         *self
             .motion
-            .get_or_insert_with(|| runtime.motion_with(self.initial.clone(), timing))
+            .get_or_insert_with(|| runtime.motion_with(initial, timing))
     }
 
     /// Plays a tween toward `target` using a timing resolved at call time.
@@ -56,7 +57,6 @@ impl<T: Animatable> MotionSlot<T> {
         runtime: &mut MotionRuntime,
     ) -> Result<bool, MotionError> {
         let Some(motion) = self.motion else {
-            self.initial = target;
             return Ok(false);
         };
 
@@ -75,9 +75,37 @@ impl<T: Animatable> MotionSlot<T> {
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         let Some(motion) = self.motion else {
-            self.initial = target;
             return Ok(false);
         };
+
+        motion.play(tween_to(target, timing), cx.runtime)?;
+        finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
+        Ok(true)
+    }
+
+    /// Registers from `initial` when needed, then plays a tween toward `target`.
+    pub fn tween_from_to(
+        &mut self,
+        initial: T,
+        target: T,
+        timing: Timing,
+        runtime: &mut MotionRuntime,
+    ) -> Result<bool, MotionError> {
+        let motion = self.register_with(runtime, initial, timing);
+
+        motion.play(tween_to(target, timing), runtime)?;
+        Ok(true)
+    }
+
+    /// Registers from `initial` when needed, plays a tween, and finishes it when reduced.
+    pub fn tween_from_to_or_finish(
+        &mut self,
+        initial: T,
+        target: T,
+        timing: Timing,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        let motion = self.register_with(cx.runtime, initial, timing);
 
         motion.play(tween_to(target, timing), cx.runtime)?;
         finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
@@ -96,17 +124,6 @@ impl<T: Animatable> MotionSlot<T> {
         self.motion.is_some()
     }
 
-    /// Returns the initial fallback value used before registration.
-    #[must_use]
-    pub const fn initial(&self) -> &T {
-        &self.initial
-    }
-
-    /// Replaces the initial fallback value.
-    pub fn set_initial(&mut self, initial: T) {
-        self.initial = initial;
-    }
-
     /// Transitions the registered motion toward `target`.
     ///
     /// Before registration this only updates the fallback value and returns
@@ -117,7 +134,6 @@ impl<T: Animatable> MotionSlot<T> {
         runtime: &mut MotionRuntime,
     ) -> Result<bool, MotionError> {
         let Some(motion) = self.motion else {
-            self.initial = target;
             return Ok(false);
         };
 
@@ -210,6 +226,12 @@ impl<T: Animatable> MotionSlot<T> {
     }
 }
 
+impl<T: Animatable> Default for MotionSlot<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn finish_if_reduced<T: Animatable>(
     motion: Motion<T>,
     reduce_motion: bool,
@@ -224,32 +246,30 @@ fn finish_if_reduced<T: Animatable>(
 
 #[cfg(test)]
 mod tests {
-    use aura_anim::prelude::*;
-    use float_cmp::assert_approx_eq;
-
     use crate::component::{ComponentContext, ComponentUpdateCx};
+    use aura_anim::prelude::*;
 
     use super::MotionSlot;
 
     #[test]
     fn transition_is_ignored_before_registration() {
         let mut runtime = MotionRuntime::new();
-        let mut motion = MotionSlot::new(0.0_f32);
+        let mut motion = MotionSlot::new();
 
         let changed = motion.transition_to(1.0, &mut runtime).unwrap();
 
         assert!(!changed);
         assert_eq!(runtime.motion_count(), 0);
-        assert_approx_eq!(f32, *motion.initial(), 1.0);
+        assert_eq!(motion.value(&runtime).unwrap().copied(), None);
     }
 
     #[test]
     fn register_inserts_motion_only_once() {
         let mut runtime = MotionRuntime::new();
-        let mut motion = MotionSlot::new(0.0_f32);
+        let mut motion = MotionSlot::new();
 
-        let first = motion.register_with(&mut runtime, Timing::linear(100.0));
-        let second = motion.register_with(&mut runtime, Timing::linear(50.0));
+        let first = motion.register_with(&mut runtime, 0.0_f32, Timing::linear(100.0));
+        let second = motion.register_with(&mut runtime, 1.0_f32, Timing::linear(50.0));
 
         assert_eq!(first.motion_id(), second.motion_id());
         assert_eq!(runtime.motion_count(), 1);
@@ -259,9 +279,9 @@ mod tests {
     #[test]
     fn registered_motion_transitions_runtime_value() {
         let mut runtime = MotionRuntime::new();
-        let mut motion = MotionSlot::new(0.0_f32);
+        let mut motion = MotionSlot::new();
 
-        let _handle = motion.register_with(&mut runtime, Timing::linear(100.0));
+        let _handle = motion.register_with(&mut runtime, 0.0_f32, Timing::linear(100.0));
         let changed = motion.transition_to(1.0, &mut runtime).unwrap();
         runtime.tick(Duration::from_millis(100.0));
 
@@ -270,11 +290,26 @@ mod tests {
     }
 
     #[test]
+    fn tween_from_to_registers_before_playing() {
+        let mut runtime = MotionRuntime::new();
+        let mut motion = MotionSlot::new();
+
+        let changed = motion
+            .tween_from_to(0.0_f32, 1.0, Timing::linear(100.0), &mut runtime)
+            .unwrap();
+        runtime.tick(Duration::from_millis(100.0));
+
+        assert!(changed);
+        assert_eq!(runtime.motion_count(), 1);
+        assert_eq!(motion.value(&runtime).unwrap().copied(), Some(1.0));
+    }
+
+    #[test]
     fn registered_motion_can_play_timeline() {
         let mut runtime = MotionRuntime::new();
-        let mut motion = MotionSlot::new(0.0_f32);
+        let mut motion = MotionSlot::new();
 
-        let _handle = motion.register(&mut runtime);
+        let _handle = motion.register(&mut runtime, 0.0_f32);
         let played = motion
             .play(
                 Sequence::new(0.0_f32)
@@ -292,8 +327,8 @@ mod tests {
     #[test]
     fn reduced_tween_finishes_registered_motion_immediately() {
         let mut runtime = MotionRuntime::new();
-        let mut motion = MotionSlot::new(0.0_f32);
-        let _ = motion.register(&mut runtime);
+        let mut motion = MotionSlot::new();
+        let _ = motion.register(&mut runtime, 0.0_f32);
 
         let mut context = ComponentContext::default().with_reduce_motion(true);
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
@@ -309,8 +344,8 @@ mod tests {
     #[test]
     fn reduced_tracked_play_finishes_with_completed_playback_event() {
         let mut runtime = MotionRuntime::new();
-        let mut motion = MotionSlot::new(0.0_f32);
-        let handle = motion.register(&mut runtime);
+        let mut motion = MotionSlot::new();
+        let handle = motion.register(&mut runtime, 0.0_f32);
 
         let mut context = ComponentContext::default().with_reduce_motion(true);
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
@@ -328,9 +363,9 @@ mod tests {
     #[test]
     fn tracked_play_returns_playback_id() {
         let mut runtime = MotionRuntime::new();
-        let mut motion = MotionSlot::new(0.0_f32);
+        let mut motion = MotionSlot::new();
 
-        let handle = motion.register(&mut runtime);
+        let handle = motion.register(&mut runtime, 0.0_f32);
         let playback = motion
             .play_tracked(
                 Tween::between(0.0, 1.0, Timing::linear(100.0)),

@@ -1,6 +1,7 @@
 //! Iced view builder for animated surfaces.
 
 use aura_anim::prelude::MotionError;
+use iced::border::Radius;
 use iced::widget::{container, mouse_area};
 use iced::{Background, Border, Color, Element, Length, Shadow, Vector};
 use spectrum_theme::iced::{IcedColorAdapter, IcedRadiusAdapter, IcedShadowAdapter};
@@ -142,28 +143,46 @@ where
 #[must_use]
 pub fn surface_style(snapshot: SurfaceSnapshot) -> container::Style {
     let style = snapshot.style;
+    let motion = snapshot.motion;
 
     container::Style {
         text_color: Some(style.foreground.color()),
-        background: Some(Background::Color(style.background.color())),
+        background: Some(Background::Color(color_with_alpha(
+            style.background.color(),
+            motion.bg_alpha,
+        ))),
         border: Border {
-            color: color_with_alpha(style.border.color(), snapshot.motion.border_alpha),
-            width: 1.0,
-            radius: style.radius.radius_px(),
+            color: color_with_alpha(style.border.color(), motion.border_alpha),
+            width: motion.border_width,
+            radius: scaled_radius(style.radius.radius_px(), motion.radius_scale),
         },
         shadow: style
             .shadow
-            .map(|shadow| scaled_shadow(shadow.shadow_px(), snapshot.motion.elevation))
+            .map(|shadow| scaled_shadow(shadow.shadow_px(), motion))
             .unwrap_or_default(),
         snap: true,
     }
 }
 
-fn scaled_shadow(shadow: Shadow, multiplier: f32) -> Shadow {
+fn scaled_shadow(shadow: Shadow, motion: crate::surface::SurfaceMotion) -> Shadow {
+    let intensity = motion.elevation * motion.shadow_alpha;
+
     Shadow {
-        color: color_with_alpha(shadow.color, multiplier),
-        offset: Vector::new(shadow.offset.x * multiplier, shadow.offset.y * multiplier),
-        blur_radius: shadow.blur_radius * multiplier,
+        color: color_with_alpha(shadow.color, intensity),
+        offset: Vector::new(
+            shadow.offset.x * motion.elevation,
+            shadow.offset.y * motion.elevation,
+        ),
+        blur_radius: shadow.blur_radius * motion.elevation * motion.shadow_blur,
+    }
+}
+
+fn scaled_radius(radius: Radius, scale: f32) -> Radius {
+    Radius {
+        top_left: radius.top_left * scale,
+        top_right: radius.top_right * scale,
+        bottom_right: radius.bottom_right * scale,
+        bottom_left: radius.bottom_left * scale,
     }
 }
 

@@ -5,235 +5,290 @@ author = "Aura Iced Component"
 version = "0.1.0"
 description = "Muted Adwaita-like baseline for Aura Iced components."
 
-[colors]
-"app.bg" = "#f6f5f4"
-"app.fg" = "#241f31"
-"app.fg_muted" = "#5e5c64"
+[app]
+bg = "#f6f5f4"
+fg = "#241f31"
+fg_muted = "#5e5c64"
 
-"surface.base.bg" = "#ffffff"
-"surface.base.fg" = "{app.fg}"
-"surface.base.border" = "#0000001f"
+[surface.base]
+bg = "#ffffff"
+fg = "{app.fg}"
+border = "#0000001f"
+radius = "8px"
 
-"surface.raised.bg" = "#fafafa"
-"surface.raised.fg" = "{app.fg}"
-"surface.raised.border" = "{surface.base.border}"
+[surface.raised]
+bg = "#fafafa"
+fg = "{app.fg}"
+border = "{surface.base.border}"
+radius = "8px"
 
-"button.standard.filled.idle.bg" = "{surface.raised.bg}"
-"button.standard.filled.idle.fg" = "{app.fg}"
-"button.standard.filled.idle.border" = "{surface.base.border}"
-"button.standard.filled.hover.bg" = "#f1f1f1"
-"button.standard.filled.hover.fg" = "{app.fg}"
-"button.standard.filled.hover.border" = "{surface.base.border}"
-"button.standard.filled.pressed.bg" = "#e9e9e9"
-"button.standard.filled.pressed.fg" = "{app.fg}"
-"button.standard.filled.pressed.border" = "{surface.base.border}"
-"button.standard.filled.disabled.bg" = "{app.bg}"
-"button.standard.filled.disabled.fg" = "#5e5c6499"
-"button.standard.filled.disabled.border" = "#00000014"
-"button.standard.filled.focus.ring" = "#1c71d8"
-
-"button.standard.flat.idle.bg" = "#00000000"
-"button.standard.flat.idle.fg" = "{app.fg}"
-"button.standard.flat.idle.border" = "#00000000"
-"button.standard.flat.hover.bg" = "#00000012"
-"button.standard.flat.hover.fg" = "{app.fg}"
-"button.standard.flat.hover.border" = "#00000000"
-"button.standard.flat.pressed.bg" = "#0000001f"
-"button.standard.flat.pressed.fg" = "{app.fg}"
-"button.standard.flat.pressed.border" = "#00000000"
-"button.standard.flat.disabled.bg" = "#00000000"
-"button.standard.flat.disabled.fg" = "{button.standard.filled.disabled.fg}"
-"button.standard.flat.disabled.border" = "#00000000"
-"button.standard.flat.focus.ring" = "{button.standard.filled.focus.ring}"
-
-"button.standard.raised.idle.bg" = "{surface.raised.bg}"
-"button.standard.raised.idle.fg" = "{app.fg}"
-"button.standard.raised.idle.border" = "{surface.base.border}"
-"button.standard.raised.hover.bg" = "#f1f1f1"
-"button.standard.raised.hover.fg" = "{app.fg}"
-"button.standard.raised.hover.border" = "{surface.base.border}"
-"button.standard.raised.pressed.bg" = "#e9e9e9"
-"button.standard.raised.pressed.fg" = "{app.fg}"
-"button.standard.raised.pressed.border" = "{surface.base.border}"
-"button.standard.raised.disabled.bg" = "{app.bg}"
-"button.standard.raised.disabled.fg" = "{button.standard.filled.disabled.fg}"
-"button.standard.raised.disabled.border" = "#00000014"
-"button.standard.raised.focus.ring" = "{button.standard.filled.focus.ring}"
-
-"button.suggested.filled.idle.bg" = "#3584e4"
-"button.suggested.filled.idle.fg" = "#ffffff"
-"button.suggested.filled.idle.border" = "{button.suggested.filled.idle.bg}"
-"button.suggested.filled.hover.bg" = "#1c71d8"
-"button.suggested.filled.hover.fg" = "#ffffff"
-"button.suggested.filled.hover.border" = "{button.suggested.filled.hover.bg}"
-"button.suggested.filled.pressed.bg" = "#1a5fb4"
-"button.suggested.filled.pressed.fg" = "#ffffff"
-"button.suggested.filled.pressed.border" = "{button.suggested.filled.pressed.bg}"
-"button.suggested.filled.disabled.bg" = "#d7d7d7"
-"button.suggested.filled.disabled.fg" = "{button.standard.filled.disabled.fg}"
-"button.suggested.filled.disabled.border" = "{button.suggested.filled.disabled.bg}"
-"button.suggested.filled.focus.ring" = "{button.standard.filled.focus.ring}"
-
-"button.suggested.flat.idle.bg" = "#00000000"
-"button.suggested.flat.idle.fg" = "#1c71d8"
-"button.suggested.flat.idle.border" = "#00000000"
-"button.suggested.flat.hover.bg" = "#3584e41a"
-"button.suggested.flat.hover.fg" = "#1c71d8"
-"button.suggested.flat.hover.border" = "#00000000"
-"button.suggested.flat.pressed.bg" = "#3584e433"
-"button.suggested.flat.pressed.fg" = "#1a5fb4"
-"button.suggested.flat.pressed.border" = "#00000000"
-"button.suggested.flat.disabled.bg" = "#00000000"
-"button.suggested.flat.disabled.fg" = "{button.standard.filled.disabled.fg}"
-"button.suggested.flat.disabled.border" = "#00000000"
-"button.suggested.flat.focus.ring" = "{button.standard.filled.focus.ring}"
-
-"button.suggested.raised.idle.bg" = "{button.suggested.filled.idle.bg}"
-"button.suggested.raised.idle.fg" = "{button.suggested.filled.idle.fg}"
-"button.suggested.raised.idle.border" = "{button.suggested.filled.idle.border}"
-"button.suggested.raised.hover.bg" = "{button.suggested.filled.hover.bg}"
-"button.suggested.raised.hover.fg" = "{button.suggested.filled.hover.fg}"
-"button.suggested.raised.hover.border" = "{button.suggested.filled.hover.border}"
-"button.suggested.raised.pressed.bg" = "{button.suggested.filled.pressed.bg}"
-"button.suggested.raised.pressed.fg" = "{button.suggested.filled.pressed.fg}"
-"button.suggested.raised.pressed.border" = "{button.suggested.filled.pressed.border}"
-"button.suggested.raised.disabled.bg" = "{button.suggested.filled.disabled.bg}"
-"button.suggested.raised.disabled.fg" = "{button.suggested.filled.disabled.fg}"
-"button.suggested.raised.disabled.border" = "{button.suggested.filled.disabled.border}"
-"button.suggested.raised.focus.ring" = "{button.suggested.filled.focus.ring}"
-
-"button.destructive.filled.idle.bg" = "#e01b24"
-"button.destructive.filled.idle.fg" = "#ffffff"
-"button.destructive.filled.idle.border" = "{button.destructive.filled.idle.bg}"
-"button.destructive.filled.hover.bg" = "#c01c28"
-"button.destructive.filled.hover.fg" = "#ffffff"
-"button.destructive.filled.hover.border" = "{button.destructive.filled.hover.bg}"
-"button.destructive.filled.pressed.bg" = "#a51d2d"
-"button.destructive.filled.pressed.fg" = "#ffffff"
-"button.destructive.filled.pressed.border" = "{button.destructive.filled.pressed.bg}"
-"button.destructive.filled.disabled.bg" = "{button.suggested.filled.disabled.bg}"
-"button.destructive.filled.disabled.fg" = "{button.standard.filled.disabled.fg}"
-"button.destructive.filled.disabled.border" = "{button.destructive.filled.disabled.bg}"
-"button.destructive.filled.focus.ring" = "{button.standard.filled.focus.ring}"
-
-"button.destructive.flat.idle.bg" = "#00000000"
-"button.destructive.flat.idle.fg" = "#c01c28"
-"button.destructive.flat.idle.border" = "#00000000"
-"button.destructive.flat.hover.bg" = "#e01b241a"
-"button.destructive.flat.hover.fg" = "#c01c28"
-"button.destructive.flat.hover.border" = "#00000000"
-"button.destructive.flat.pressed.bg" = "#e01b2433"
-"button.destructive.flat.pressed.fg" = "#a51d2d"
-"button.destructive.flat.pressed.border" = "#00000000"
-"button.destructive.flat.disabled.bg" = "#00000000"
-"button.destructive.flat.disabled.fg" = "{button.standard.filled.disabled.fg}"
-"button.destructive.flat.disabled.border" = "#00000000"
-"button.destructive.flat.focus.ring" = "{button.standard.filled.focus.ring}"
-
-"button.destructive.raised.idle.bg" = "{button.destructive.filled.idle.bg}"
-"button.destructive.raised.idle.fg" = "{button.destructive.filled.idle.fg}"
-"button.destructive.raised.idle.border" = "{button.destructive.filled.idle.border}"
-"button.destructive.raised.hover.bg" = "{button.destructive.filled.hover.bg}"
-"button.destructive.raised.hover.fg" = "{button.destructive.filled.hover.fg}"
-"button.destructive.raised.hover.border" = "{button.destructive.filled.hover.border}"
-"button.destructive.raised.pressed.bg" = "{button.destructive.filled.pressed.bg}"
-"button.destructive.raised.pressed.fg" = "{button.destructive.filled.pressed.fg}"
-"button.destructive.raised.pressed.border" = "{button.destructive.filled.pressed.border}"
-"button.destructive.raised.disabled.bg" = "{button.destructive.filled.disabled.bg}"
-"button.destructive.raised.disabled.fg" = "{button.destructive.filled.disabled.fg}"
-"button.destructive.raised.disabled.border" = "{button.destructive.filled.disabled.border}"
-"button.destructive.raised.focus.ring" = "{button.destructive.filled.focus.ring}"
-
-[radii]
-"surface.base.radius" = "8px"
-"surface.raised.radius" = "{surface.base.radius}"
-"button.shape.rounded.radius" = "9px"
-"button.shape.pill.radius" = "999px"
-"button.shape.circular.radius" = "{button.shape.pill.radius}"
-
-[lengths]
-"control.border.width" = "1px"
-"control.button.padding_x" = "14px"
-"control.button.padding_y" = "8px"
-"control.icon_button.size" = "40px"
-"control.icon_button.icon_size" = "16px"
-
-[[shadows]]
-path = "surface.raised.shadow"
+[surface.raised.shadow]
 color = "#00000024"
 offset_x = "0px"
 offset_y = "2px"
 blur = "10px"
 spread = "0px"
 
-[[shadows]]
-path = "button.standard.filled.shadow"
+[control.border]
+width = "1px"
+
+[control.button]
+padding_x = "14px"
+padding_y = "8px"
+
+[control.icon_button]
+size = "40px"
+icon_size = "16px"
+
+[button.shape.rounded]
+radius = "9px"
+
+[button.shape.pill]
+radius = "999px"
+
+[button.shape.circular]
+radius = "999px"
+
+[button.standard_filled.idle]
+bg = "{surface.raised.bg}"
+fg = "{app.fg}"
+border = "{surface.base.border}"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.standard_filled.idle.shadow]
 color = "#00000000"
 offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
+offset_y = "0px"
+blur = "0px"
 spread = "0px"
 
-[[shadows]]
-path = "button.standard.flat.shadow"
+[button.standard_filled.hover]
+bg = "#f1f1f1"
+
+[button.standard_filled.pressed]
+bg = "#e9e9e9"
+
+[button.standard_filled.disabled]
+bg = "{app.bg}"
+fg = "#5e5c6499"
+border = "#00000014"
+
+[button.standard_flat.idle]
+bg = "#00000000"
+fg = "{app.fg}"
+border = "#00000000"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.standard_flat.idle.shadow]
 color = "#00000000"
 offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
+offset_y = "0px"
+blur = "0px"
 spread = "0px"
 
-[[shadows]]
-path = "button.standard.raised.shadow"
-color = "#00000024"
-offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
-spread = "0px"
+[button.standard_flat.hover]
+bg = "#00000012"
 
-[[shadows]]
-path = "button.suggested.filled.shadow"
+[button.standard_flat.pressed]
+bg = "#0000001f"
+
+[button.standard_flat.disabled]
+bg = "#00000000"
+fg = "{button.standard_filled.disabled.fg}"
+border = "#00000000"
+
+[button.standard_raised.idle]
+bg = "{surface.raised.bg}"
+fg = "{app.fg}"
+border = "{surface.base.border}"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.standard_raised.idle.shadow]
 color = "#00000000"
 offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
+offset_y = "0px"
+blur = "0px"
 spread = "0px"
 
-[[shadows]]
-path = "button.suggested.flat.shadow"
+[button.standard_raised.hover]
+bg = "#f1f1f1"
+
+[button.standard_raised.pressed]
+bg = "#e9e9e9"
+
+[button.standard_raised.disabled]
+bg = "{app.bg}"
+fg = "{button.standard_filled.disabled.fg}"
+border = "#00000014"
+
+[button.suggested_filled.idle]
+bg = "#3584e4"
+fg = "#ffffff"
+border = "{button.suggested_filled.idle.bg}"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.suggested_filled.idle.shadow]
 color = "#00000000"
 offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
+offset_y = "0px"
+blur = "0px"
 spread = "0px"
 
-[[shadows]]
-path = "button.suggested.raised.shadow"
-color = "#00000024"
-offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
-spread = "0px"
+[button.suggested_filled.hover]
+bg = "#1c71d8"
+border = "{button.suggested_filled.hover.bg}"
 
-[[shadows]]
-path = "button.destructive.filled.shadow"
+[button.suggested_filled.pressed]
+bg = "#1a5fb4"
+border = "{button.suggested_filled.pressed.bg}"
+
+[button.suggested_filled.disabled]
+bg = "#d7d7d7"
+fg = "{button.standard_filled.disabled.fg}"
+border = "{button.suggested_filled.disabled.bg}"
+
+[button.suggested_flat.idle]
+bg = "#00000000"
+fg = "#1c71d8"
+border = "#00000000"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.suggested_flat.idle.shadow]
 color = "#00000000"
 offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
+offset_y = "0px"
+blur = "0px"
 spread = "0px"
 
-[[shadows]]
-path = "button.destructive.flat.shadow"
+[button.suggested_flat.hover]
+bg = "#3584e41a"
+
+[button.suggested_flat.pressed]
+bg = "#3584e433"
+fg = "#1a5fb4"
+
+[button.suggested_flat.disabled]
+bg = "#00000000"
+fg = "{button.standard_filled.disabled.fg}"
+border = "#00000000"
+
+[button.suggested_raised.idle]
+bg = "{button.suggested_filled.idle.bg}"
+fg = "{button.suggested_filled.idle.fg}"
+border = "{button.suggested_filled.idle.border}"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.suggested_raised.idle.shadow]
 color = "#00000000"
 offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
+offset_y = "0px"
+blur = "0px"
 spread = "0px"
 
-[[shadows]]
-path = "button.destructive.raised.shadow"
-color = "#00000024"
+[button.suggested_raised.hover]
+bg = "{button.suggested_filled.hover.bg}"
+border = "{button.suggested_filled.hover.border}"
+
+[button.suggested_raised.pressed]
+bg = "{button.suggested_filled.pressed.bg}"
+border = "{button.suggested_filled.pressed.border}"
+
+[button.suggested_raised.disabled]
+bg = "{button.suggested_filled.disabled.bg}"
+fg = "{button.suggested_filled.disabled.fg}"
+border = "{button.suggested_filled.disabled.border}"
+
+[button.destructive_filled.idle]
+bg = "#e01b24"
+fg = "#ffffff"
+border = "{button.destructive_filled.idle.bg}"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.destructive_filled.idle.shadow]
+color = "#00000000"
 offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
+offset_y = "0px"
+blur = "0px"
 spread = "0px"
+
+[button.destructive_filled.hover]
+bg = "#c01c28"
+border = "{button.destructive_filled.hover.bg}"
+
+[button.destructive_filled.pressed]
+bg = "#a51d2d"
+border = "{button.destructive_filled.pressed.bg}"
+
+[button.destructive_filled.disabled]
+bg = "{button.suggested_filled.disabled.bg}"
+fg = "{button.standard_filled.disabled.fg}"
+border = "{button.destructive_filled.disabled.bg}"
+
+[button.destructive_flat.idle]
+bg = "#00000000"
+fg = "#c01c28"
+border = "#00000000"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.destructive_flat.idle.shadow]
+color = "#00000000"
+offset_x = "0px"
+offset_y = "0px"
+blur = "0px"
+spread = "0px"
+
+[button.destructive_flat.hover]
+bg = "#e01b241a"
+
+[button.destructive_flat.pressed]
+bg = "#e01b2433"
+fg = "#a51d2d"
+
+[button.destructive_flat.disabled]
+bg = "#00000000"
+fg = "{button.standard_filled.disabled.fg}"
+border = "#00000000"
+
+[button.destructive_raised.idle]
+bg = "{button.destructive_filled.idle.bg}"
+fg = "{button.destructive_filled.idle.fg}"
+border = "{button.destructive_filled.idle.border}"
+border_width = "1px"
+radius = "9px"
+focus_ring = "#1c71d8"
+
+[button.destructive_raised.idle.shadow]
+color = "#00000000"
+offset_x = "0px"
+offset_y = "0px"
+blur = "0px"
+spread = "0px"
+
+[button.destructive_raised.hover]
+bg = "{button.destructive_filled.hover.bg}"
+border = "{button.destructive_filled.hover.border}"
+
+[button.destructive_raised.pressed]
+bg = "{button.destructive_filled.pressed.bg}"
+border = "{button.destructive_filled.pressed.border}"
+
+[button.destructive_raised.disabled]
+bg = "{button.destructive_filled.disabled.bg}"
+fg = "{button.destructive_filled.disabled.fg}"
+border = "{button.destructive_filled.disabled.border}"

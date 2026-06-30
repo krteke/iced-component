@@ -2,7 +2,7 @@
 
 mod source;
 
-use aura_anim::prelude::{MotionError, MotionRuntime};
+use aura_anim::prelude::MotionError;
 use iced::{Length, widget::svg};
 use spectrum_theme::iced::IcedColorAdapter;
 use std::borrow::Cow;
@@ -243,9 +243,9 @@ impl IconButton {
         self
     }
 
-    /// Registers the inner button motion handle in the application runtime.
-    pub fn register(&mut self, runtime: &mut MotionRuntime) {
-        self.button.register(runtime);
+    /// Registers the inner button motion handle using the current component context.
+    pub fn register(&mut self, cx: &mut ComponentUpdateCx<'_>) {
+        self.button.register(cx);
     }
 
     /// Synchronizes the inner button's current motion target with the runtime.

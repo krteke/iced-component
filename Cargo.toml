@@ -11,11 +11,8 @@ license = "MIT"
 repository = "https://github.com/krteke/arua-iced-component"
 
 [workspace.dependencies]
-spectrum-theme = "0.1.1"
-spectrum-schema = "0.1.1"
-spectrum-resolver = "0.1.1"
-
-aura-anim = { git = "https://github.com/krteke/aura-anim-iced" }
+spectrum-theme = { git = "https://github.com/krteke/void-spectrum" }
+aura-anim = { git = "https://github.com/krteke/aura-anim-iced", default-features = false }
 iced = { version = "0.14.0", features = ["tokio"] }
 
 toml = "1.1.2"

@@ -58,13 +58,11 @@ enum MotionAction {
 
 impl Demo {
     fn new() -> Self {
-        let mut runtime = MotionRuntime::new();
+        let runtime = MotionRuntime::new();
         let context = ComponentContext::default();
-        let mut save_button = Button::suggested("Save 0");
-        let mut reset_button = Button::standard("Reset").flat();
-        let mut motion_button = IconButton::suggested(IconSource::svg_static(MOTION_ICON));
-
-        iced_component::register_components!(runtime, [save_button, reset_button, motion_button]);
+        let save_button = Button::suggested("Save 0");
+        let reset_button = Button::standard("Reset").flat();
+        let motion_button = IconButton::suggested(IconSource::svg_static(MOTION_ICON));
 
         Self {
             runtime,
@@ -156,8 +154,8 @@ impl Demo {
             text("Hover, press, and toggle reduced motion to see the component runtime path."),
             row![save, reset, motion, text(reduce_label).size(14),].spacing(12),
             text(format!(
-                "motion: scale {:.2}, shadow_y {:.2}, bg_alpha {:.2}",
-                snapshot.motion.scale, snapshot.motion.shadow_y, snapshot.motion.bg_alpha
+                "motion: focus {:.2}, bg {}",
+                snapshot.motion.focus_ring_alpha, snapshot.motion.tokens.bg
             ))
             .size(14),
             text(self.motion_error.as_deref().unwrap_or("motion runtime: ok")).size(14),

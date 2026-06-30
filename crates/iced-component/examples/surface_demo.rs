@@ -35,12 +35,10 @@ enum Message {
 
 impl Demo {
     fn new() -> Self {
-        let mut runtime = MotionRuntime::new();
+        let runtime = MotionRuntime::new();
         let context = ComponentContext::default();
-        let mut card = Surface::raised().with_padding(18.0).with_width(190.0);
-        let mut panel = Surface::regular().with_padding(18.0).with_width(190.0);
-
-        iced_component::register_components!(runtime, [card, panel]);
+        let card = Surface::raised().with_padding(18.0).with_width(190.0);
+        let panel = Surface::regular().with_padding(18.0).with_width(190.0);
 
         Self {
             runtime,

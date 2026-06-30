@@ -68,10 +68,10 @@ mod tests {
     fn scoped_context_does_not_mutate_parent() {
         let parent = ThemeContext::from_theme(&ThemePack::adwaita());
         let scoped_bg = Color::new(221, 238, 255);
-        let scoped = parent.scoped(|theme| theme.button.standard.filled.hover.bg = scoped_bg);
+        let scoped = parent.scoped(|theme| theme.button.standard_filled.hover.bg = scoped_bg);
 
-        assert_ne!(parent.theme().button.standard.filled.hover.bg, scoped_bg);
-        assert_eq!(scoped.theme().button.standard.filled.hover.bg, scoped_bg);
+        assert_ne!(parent.theme().button.standard_filled.hover.bg, scoped_bg);
+        assert_eq!(scoped.theme().button.standard_filled.hover.bg, scoped_bg);
     }
 
     #[test]

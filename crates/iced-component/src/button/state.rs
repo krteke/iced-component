@@ -1,4 +1,4 @@
-use crate::button::{ButtonEvent, ButtonInteraction, ButtonMotion, ButtonStyleState};
+use crate::button::{ButtonEvent, ButtonInteraction, ButtonStyleState};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) struct ButtonState {
@@ -94,15 +94,6 @@ impl ButtonState {
             ButtonStyleState::Hovered
         } else {
             ButtonStyleState::Idle
-        }
-    }
-
-    pub(super) const fn target_motion(self) -> ButtonMotion {
-        match self.style_state() {
-            ButtonStyleState::Disabled => ButtonMotion::disabled(self.focused),
-            ButtonStyleState::Pressed => ButtonMotion::pressed(self.focused),
-            ButtonStyleState::Hovered => ButtonMotion::hovered(self.focused),
-            ButtonStyleState::Idle => ButtonMotion::idle_with_focus(self.focused),
         }
     }
 }

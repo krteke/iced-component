@@ -35,12 +35,10 @@ enum Message {
 
 impl Demo {
     fn new() -> Self {
-        let mut runtime = MotionRuntime::new();
+        let runtime = MotionRuntime::new();
         let context = ComponentContext::default();
-        let mut inspector = Panel::titled("Inspector");
-        let mut status = Panel::titled("Status");
-
-        iced_component::register_components!(runtime, [inspector, status]);
+        let inspector = Panel::titled("Inspector");
+        let status = Panel::titled("Status");
 
         Self {
             runtime,

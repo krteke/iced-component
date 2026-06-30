@@ -2,7 +2,7 @@
 
 mod view;
 
-use aura_anim::prelude::{MotionError, MotionRuntime};
+use aura_anim::prelude::MotionError;
 use iced::Length;
 
 use crate::{
@@ -136,9 +136,9 @@ impl Panel {
         self.surface.clear_height();
     }
 
-    /// Registers the panel surface motion handle.
-    pub fn register(&mut self, runtime: &mut MotionRuntime) {
-        self.surface.register(runtime);
+    /// Registers the panel surface motion handle using the current component context.
+    pub fn register(&mut self, cx: &mut ComponentUpdateCx<'_>) {
+        self.surface.register(cx);
     }
 
     /// Synchronizes the panel surface's current motion target with the runtime.
@@ -294,9 +294,9 @@ mod tests {
         let mut context = ComponentContext::adwaita();
         let mut panel = Panel::new();
 
-        panel.register(&mut runtime);
         {
             let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            panel.register(&mut cx);
             panel
                 .update_event(
                     SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter),

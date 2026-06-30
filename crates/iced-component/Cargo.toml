@@ -8,11 +8,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-aura-anim.workspace = true
+aura-anim = { workspace = true, features = ["oklaba"] }
 iced = { workspace = true, features = ["svg"] }
-spectrum-theme = { workspace = true, features = ["macros", "iced"] }
-spectrum-schema.workspace = true
-spectrum-resolver.workspace = true
+spectrum-theme = { workspace = true, features = ["macros", "iced", "toml"] }
 toml.workspace = true
 thiserror.workspace = true
 

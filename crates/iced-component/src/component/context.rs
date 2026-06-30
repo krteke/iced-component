@@ -166,10 +166,10 @@ mod tests {
         let context = ComponentContext::adwaita();
         let scoped_bg = Color::new(221, 238, 255);
         let scoped =
-            context.scoped_theme(|theme| theme.button.standard.filled.hover.bg = scoped_bg);
+            context.scoped_theme(|theme| theme.button.standard_filled.hover.bg = scoped_bg);
 
         assert_eq!(
-            scoped.theme().theme().button.standard.filled.hover.bg,
+            scoped.theme().theme().button.standard_filled.hover.bg,
             scoped_bg
         );
     }
@@ -179,11 +179,11 @@ mod tests {
         let accent = Color::new(26, 95, 180);
         let mut context = ComponentContext::adwaita();
 
-        context.patch_theme(|theme| theme.button.suggested.filled.idle.bg = accent);
+        context.patch_theme(|theme| theme.button.suggested_filled.idle.bg = accent);
         context.set_reduce_motion(true);
 
         assert_eq!(
-            context.theme().theme().button.suggested.filled.idle.bg,
+            context.theme().theme().button.suggested_filled.idle.bg,
             accent
         );
         assert!(context.reduce_motion());
@@ -195,14 +195,14 @@ mod tests {
         let mut first = ComponentContext::adwaita();
         let second = ComponentContext::adwaita();
 
-        first.patch_theme(|theme| theme.button.suggested.filled.idle.bg = accent);
+        first.patch_theme(|theme| theme.button.suggested_filled.idle.bg = accent);
 
         assert_eq!(
-            first.theme().theme().button.suggested.filled.idle.bg,
+            first.theme().theme().button.suggested_filled.idle.bg,
             accent
         );
         assert_ne!(
-            second.theme().theme().button.suggested.filled.idle.bg,
+            second.theme().theme().button.suggested_filled.idle.bg,
             accent
         );
     }

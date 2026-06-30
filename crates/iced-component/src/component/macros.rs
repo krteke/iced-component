@@ -1,21 +1,24 @@
-/// Registers multiple component motion handles against one runtime.
+/// Registers multiple component motion handles against one update context.
 ///
 /// Syntax:
 ///
 /// ```
-/// # use iced_component::anim::MotionRuntime;
 /// # use iced_component::button::Button;
+/// # use iced_component::anim::MotionRuntime;
+/// # use iced_component::component::{ComponentContext, ComponentUpdateCx};
 /// # let mut runtime = MotionRuntime::new();
+/// # let mut context = ComponentContext::default();
+/// # let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
 /// # let mut save = Button::suggested("Save");
 /// # let mut cancel = Button::standard("Cancel");
-/// iced_component::register_components!(runtime, [save, cancel]);
+/// iced_component::register_components!(cx, [save, cancel]);
 /// ```
 #[macro_export]
 macro_rules! register_components {
-    ($runtime:expr, [$($component:expr),* $(,)?]) => {{
-        let runtime = &mut $runtime;
+    ($cx:expr, [$($component:expr),* $(,)?]) => {{
+        let cx = &mut $cx;
         $(
-            ($component).register(runtime);
+            ($component).register(cx);
         )*
     }};
 }
@@ -54,8 +57,12 @@ mod tests {
         let mut button = Button::suggested("Save");
         let mut surface = Surface::raised();
 
-        crate::register_components!(runtime, [button, surface]);
-        crate::register_components!(runtime, [button, surface]);
+        let mut context = ComponentContext::default();
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            crate::register_components!(cx, [button, surface]);
+            crate::register_components!(cx, [button, surface]);
+        }
 
         assert_eq!(runtime.motion_count(), 2);
     }
@@ -72,9 +79,8 @@ mod tests {
 
         assert!(!changed);
 
-        crate::register_components!(runtime, [button, surface]);
+        crate::register_components!(cx, [button, surface]);
 
-        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
         let changed = crate::sync_components!(cx, [button, surface]).unwrap();
 
         assert!(changed);

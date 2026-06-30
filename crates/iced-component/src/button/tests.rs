@@ -1,5 +1,6 @@
 use aura_anim::prelude::*;
 use float_cmp::assert_approx_eq;
+use spectrum_theme::Color;
 
 use crate::{
     button::{
@@ -7,12 +8,13 @@ use crate::{
         ButtonVariant,
     },
     component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
+    theme::ThemePack,
 };
 
-use super::{ButtonEvent, ButtonInteraction, ButtonMotion};
+use super::{ButtonEvent, ButtonInteraction};
 
 #[test]
-fn interaction_before_registration_updates_target_without_runtime_motion() {
+fn first_interaction_registers_runtime_motion_from_current_context() {
     let mut runtime = MotionRuntime::new();
     let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
@@ -23,18 +25,57 @@ fn interaction_before_registration_updates_target_without_runtime_motion() {
             .update(ButtonInteraction::HoverEnter, &mut cx)
             .unwrap()
     };
+    runtime.tick(Duration::from_millis(200.0));
 
-    assert!(!changed);
-    assert_eq!(runtime.motion_count(), 0);
+    assert!(changed);
+    assert_eq!(runtime.motion_count(), 1);
+    let motion = button.motion_value(&runtime).unwrap().unwrap();
+    let theme = ThemePack::adwaita();
+
     assert_eq!(
-        button.motion_value(&runtime).unwrap(),
-        ButtonMotion {
-            scale: 1.0,
-            shadow_y: 1.2,
-            bg_alpha: 1.0,
-            border_glow: 0.0,
-            focus_alpha: 0.0,
-        }
+        motion.tokens.bg.rgba(),
+        theme.button.standard_filled.hover.bg.rgba()
+    );
+    assert_eq!(
+        motion.tokens.fg.rgba(),
+        theme.button.standard_filled.hover.fg.rgba()
+    );
+}
+
+#[test]
+fn unregistered_snapshot_and_first_update_use_current_context_theme() {
+    let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
+    let idle = Color::new(220, 236, 255);
+    let hover = Color::new(196, 220, 248);
+    context.patch_theme(|theme| {
+        theme.button.standard_filled.idle.bg = idle;
+        theme.button.standard_filled.hover.bg = hover;
+    });
+    let mut button = Button::standard("Save");
+
+    let cx = ComponentViewCx::new(&runtime, &context);
+    let snapshot = button.snapshot(&cx).unwrap();
+    assert_eq!(snapshot.style.background, idle);
+    assert!(button.motion_value(&runtime).unwrap().is_none());
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+    }
+    runtime.tick(Duration::from_millis(200.0));
+
+    assert_eq!(
+        button
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        hover.rgba()
     );
 }
 
@@ -44,7 +85,10 @@ fn registered_hover_transitions_runtime_motion() {
     let mut context = ComponentContext::adwaita();
     let mut button = Button::suggested("Save");
 
-    button.register(&mut runtime);
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.register(&mut cx);
+    }
     let changed = {
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
         button
@@ -55,7 +99,23 @@ fn registered_hover_transitions_runtime_motion() {
 
     assert!(changed);
     assert_eq!(runtime.motion_count(), 1);
-    assert_approx_eq!(f32, button.motion_value(&runtime).unwrap().shadow_y, 1.2);
+    assert_eq!(
+        button
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        context
+            .theme()
+            .theme()
+            .button
+            .suggested_filled
+            .hover
+            .bg
+            .rgba()
+    );
     assert_eq!(button.variant(), ButtonVariant::SUGGESTED);
 }
 
@@ -65,16 +125,32 @@ fn update_respects_context_reduced_motion() {
     let mut context = ComponentContext::adwaita().with_reduce_motion(true);
     let mut button = Button::suggested("Save");
 
-    button.register(&mut runtime);
     {
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.register(&mut cx);
         button
             .update(ButtonInteraction::HoverEnter, &mut cx)
             .unwrap();
     }
     runtime.tick(Duration::from_millis(1.0));
 
-    assert_approx_eq!(f32, button.motion_value(&runtime).unwrap().shadow_y, 1.2);
+    assert_eq!(
+        button
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        context
+            .theme()
+            .theme()
+            .button
+            .suggested_filled
+            .hover
+            .bg
+            .rgba()
+    );
 }
 
 #[test]
@@ -85,24 +161,56 @@ fn reduce_motion_is_scoped_to_component_context() {
     let mut reduced = Button::suggested("Reduced");
     let mut regular = Button::suggested("Regular");
 
-    reduced.register(&mut runtime);
-    regular.register(&mut runtime);
     {
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut reduced_context);
+        reduced.register(&mut cx);
         reduced
             .update(ButtonInteraction::HoverEnter, &mut cx)
             .unwrap();
     }
     {
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut regular_context);
+        regular.register(&mut cx);
         regular
             .update(ButtonInteraction::HoverEnter, &mut cx)
             .unwrap();
     }
     runtime.tick(Duration::from_millis(1.0));
 
-    assert_approx_eq!(f32, reduced.motion_value(&runtime).unwrap().shadow_y, 1.2);
-    assert!(regular.motion_value(&runtime).unwrap().shadow_y < 1.2);
+    assert_eq!(
+        reduced
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        reduced_context
+            .theme()
+            .theme()
+            .button
+            .suggested_filled
+            .hover
+            .bg
+            .rgba()
+    );
+    assert_ne!(
+        regular
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        regular_context
+            .theme()
+            .theme()
+            .button
+            .suggested_filled
+            .hover
+            .bg
+            .rgba()
+    );
 }
 
 #[test]
@@ -130,9 +238,9 @@ fn disabled_button_ignores_press_down() {
     let mut context = ComponentContext::adwaita();
     let mut button = Button::standard("Save");
 
-    button.register(&mut runtime);
     {
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.register(&mut cx);
         button
             .update(ButtonInteraction::SetDisabled(true), &mut cx)
             .unwrap();
@@ -142,9 +250,21 @@ fn disabled_button_ignores_press_down() {
     }
     runtime.tick(Duration::from_millis(200.0));
 
-    let motion = button.motion_value(&runtime).unwrap();
-    assert_approx_eq!(f32, motion.scale, 1.0);
-    assert_approx_eq!(f32, motion.bg_alpha, 0.45);
+    let motion = button.motion_value(&runtime).unwrap().unwrap();
+    let theme = ThemePack::adwaita();
+
+    assert_eq!(
+        motion.tokens.bg.rgba(),
+        theme.button.standard_filled.disabled.bg.rgba()
+    );
+    assert_eq!(
+        motion.tokens.fg.rgba(),
+        theme.button.standard_filled.disabled.fg.rgba()
+    );
+    assert_eq!(
+        motion.tokens.border.rgba(),
+        theme.button.standard_filled.disabled.border.rgba()
+    );
 }
 
 #[test]
@@ -274,9 +394,9 @@ fn snapshot_combines_style_and_motion() {
     let mut context = ComponentContext::adwaita();
     let mut button = Button::suggested("Save");
 
-    button.register(&mut runtime);
     {
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.register(&mut cx);
         button
             .update(ButtonInteraction::PressDown, &mut cx)
             .unwrap();
@@ -289,10 +409,27 @@ fn snapshot_combines_style_and_motion() {
     assert_eq!(snapshot.variant, ButtonVariant::SUGGESTED);
     assert_eq!(snapshot.style_state, ButtonStyleState::Pressed);
     assert_eq!(
-        snapshot.style.background,
-        context.theme().theme().button.suggested.filled.pressed.bg
+        snapshot.style.background.rgba(),
+        context
+            .theme()
+            .theme()
+            .button
+            .suggested_filled
+            .pressed
+            .bg
+            .rgba()
     );
-    assert_approx_eq!(f32, snapshot.motion.scale, 0.98);
+    assert_eq!(
+        snapshot.motion.tokens.bg.rgba(),
+        context
+            .theme()
+            .theme()
+            .button
+            .suggested_filled
+            .pressed
+            .bg
+            .rgba()
+    );
 }
 
 #[test]
@@ -308,6 +445,7 @@ fn snapshot_reports_focus_and_disabled_state() {
             .update(ButtonInteraction::SetDisabled(true), &mut cx)
             .unwrap();
     }
+    runtime.tick(Duration::from_millis(200.0));
 
     let cx = ComponentViewCx::new(&runtime, &context);
     let snapshot = button.snapshot(&cx).unwrap();
@@ -315,7 +453,8 @@ fn snapshot_reports_focus_and_disabled_state() {
     assert!(snapshot.focused);
     assert!(snapshot.disabled);
     assert_eq!(snapshot.style_state, ButtonStyleState::Disabled);
-    assert_approx_eq!(f32, snapshot.motion.focus_alpha, 0.5);
+    assert_approx_eq!(f32, snapshot.motion.focus_ring_alpha, 0.5);
+    assert_approx_eq!(f32, snapshot.motion.focus_ring_width, 1.0);
 }
 
 #[test]
