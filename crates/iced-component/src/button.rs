@@ -334,9 +334,11 @@ impl Button {
             return;
         }
 
-        let _ = self
-            .motion
-            .register(cx.runtime, self.motion_from_ctx(cx.context()));
+        let _ = self.motion.register(
+            cx.runtime,
+            self.motion_from_ctx(cx.context()),
+            cx.context().theme_revision(),
+        );
     }
 
     /// Synchronizes this button's current motion target with the runtime.
@@ -393,7 +395,11 @@ impl Button {
         }
     }
 
-    /// Returns the current runtime motion value, or `None` if not registered.
+    /// Returns the raw runtime motion value, or `None` if not registered.
+    ///
+    /// This does not validate the current theme revision. Rendering code should
+    /// use [`snapshot`](Self::snapshot), which falls back to current context
+    /// tokens when the runtime value belongs to an older theme.
     pub fn motion_value(
         &self,
         runtime: &MotionRuntime,
@@ -408,7 +414,7 @@ impl Button {
     ) -> Result<ButtonMotion, MotionError> {
         Ok(self
             .motion
-            .value(runtime)?
+            .value_if_current(runtime, context.theme_revision())?
             .copied()
             .unwrap_or_else(|| self.motion_from_ctx(context)))
     }
@@ -488,7 +494,7 @@ impl Button {
 
         let initial = self
             .motion
-            .value(cx.runtime)?
+            .value_if_current(cx.runtime, cx.context().theme_revision())?
             .copied()
             .unwrap_or_else(|| self.motion_from_state(cx.context(), previous));
         let target = self.motion_from_ctx(cx.context());

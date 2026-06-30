@@ -1,22 +1,40 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use aura_anim::prelude::MotionRuntime;
 
 use crate::theme::{ThemeContext, ThemeLoadError, ThemePack};
 
+/// Monotonic marker for the theme snapshot carried by a [`ComponentContext`].
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub struct ThemeRevision(u64);
+
+impl ThemeRevision {
+    fn next() -> Self {
+        static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
+
+        Self(NEXT_REVISION.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
 /// Shared component inputs that can change while the application is running.
 #[derive(Clone)]
 pub struct ComponentContext {
     theme: ThemeContext,
+    theme_revision: ThemeRevision,
     reduce_motion: bool,
 }
 
 impl ComponentContext {
     /// Creates a component context from explicit inputs.
     #[must_use]
-    pub const fn new(theme: ThemeContext) -> Self {
+    pub fn new(theme: ThemeContext) -> Self {
         Self {
             theme,
+            theme_revision: ThemeRevision::next(),
             reduce_motion: false,
         }
     }
@@ -33,14 +51,22 @@ impl ComponentContext {
         &self.theme
     }
 
+    /// Returns the revision of the current theme snapshot.
+    #[must_use]
+    pub const fn theme_revision(&self) -> ThemeRevision {
+        self.theme_revision
+    }
+
     /// Replaces the theme context.
     pub fn set_theme(&mut self, theme: ThemeContext) {
         self.theme = theme;
+        self.bump_theme_revision();
     }
 
     /// Replaces the theme with an owned theme pack.
     pub fn set_theme_pack(&mut self, theme: ThemePack) {
         self.theme = ThemeContext::new(theme);
+        self.bump_theme_revision();
     }
 
     /// Loads a theme from a TOML file at the given path.
@@ -55,11 +81,13 @@ impl ComponentContext {
     /// Resets this context to the default Adwaita-like theme.
     pub fn reset_theme(&mut self) {
         self.theme = ThemeContext::adwaita();
+        self.bump_theme_revision();
     }
 
     /// Applies local theme token changes to this context.
     pub fn patch_theme(&mut self, patch: impl FnOnce(&mut ThemePack)) {
         self.theme = self.theme.clone().with_patch(patch);
+        self.bump_theme_revision();
     }
 
     /// Returns a context with local theme token changes applied.
@@ -67,6 +95,7 @@ impl ComponentContext {
     pub fn scoped_theme(&self, patch: impl FnOnce(&mut ThemePack)) -> Self {
         Self {
             theme: self.theme.scoped(patch),
+            theme_revision: ThemeRevision::next(),
             reduce_motion: self.reduce_motion,
         }
     }
@@ -92,6 +121,10 @@ impl ComponentContext {
     /// Toggles the reduced-motion preference.
     pub fn toggle_reduce_motion(&mut self) {
         self.reduce_motion = !self.reduce_motion;
+    }
+
+    fn bump_theme_revision(&mut self) {
+        self.theme_revision = ThemeRevision::next();
     }
 }
 
@@ -164,10 +197,12 @@ mod tests {
     #[test]
     fn scoped_theme_keeps_theme_override() {
         let context = ComponentContext::adwaita();
+        let parent_revision = context.theme_revision();
         let scoped_bg = Color::new(221, 238, 255);
         let scoped =
             context.scoped_theme(|theme| theme.button.standard_filled.hover.bg = scoped_bg);
 
+        assert_ne!(scoped.theme_revision(), parent_revision);
         assert_eq!(
             scoped.theme().theme().button.standard_filled.hover.bg,
             scoped_bg
@@ -178,10 +213,14 @@ mod tests {
     fn context_can_change_theme_and_reduce_motion_at_runtime() {
         let accent = Color::new(26, 95, 180);
         let mut context = ComponentContext::adwaita();
+        let initial_revision = context.theme_revision();
 
         context.patch_theme(|theme| theme.button.suggested_filled.idle.bg = accent);
+        let patched_revision = context.theme_revision();
         context.set_reduce_motion(true);
 
+        assert_ne!(patched_revision, initial_revision);
+        assert_eq!(context.theme_revision(), patched_revision);
         assert_eq!(
             context.theme().theme().button.suggested_filled.idle.bg,
             accent
@@ -205,5 +244,21 @@ mod tests {
             second.theme().theme().button.suggested_filled.idle.bg,
             accent
         );
+    }
+
+    #[test]
+    fn theme_replacement_paths_bump_revision() {
+        let mut context = ComponentContext::adwaita();
+        let initial = context.theme_revision();
+
+        context.set_theme(crate::theme::ThemeContext::adwaita());
+        let after_set_theme = context.theme_revision();
+        context.set_theme_pack(crate::theme::ThemePack::adwaita());
+        let after_set_pack = context.theme_revision();
+        context.reset_theme();
+
+        assert_ne!(after_set_theme, initial);
+        assert_ne!(after_set_pack, after_set_theme);
+        assert_ne!(context.theme_revision(), after_set_pack);
     }
 }

@@ -80,6 +80,125 @@ fn unregistered_snapshot_and_first_update_use_current_context_theme() {
 }
 
 #[test]
+fn snapshot_ignores_registered_motion_after_theme_revision_changes() {
+    let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
+    let mut button = Button::standard("Save");
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+    }
+    runtime.tick(Duration::from_millis(200.0));
+    let old_hover = button.motion_value(&runtime).unwrap().unwrap().tokens.bg;
+    let new_hover = Color::new(180, 210, 244);
+
+    context.patch_theme(|theme| theme.button.standard_filled.hover.bg = new_hover);
+
+    let cx = ComponentViewCx::new(&runtime, &context);
+    let snapshot = button.snapshot(&cx).unwrap();
+
+    assert_ne!(old_hover.rgba(), new_hover.rgba());
+    assert_eq!(snapshot.style.background.rgba(), new_hover.rgba());
+    assert_eq!(
+        button
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        old_hover.rgba()
+    );
+}
+
+#[test]
+fn sync_updates_registered_motion_to_new_theme_revision() {
+    let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
+    let mut button = Button::standard("Save");
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+    }
+    runtime.tick(Duration::from_millis(200.0));
+
+    let new_hover = Color::new(181, 214, 248);
+    context.patch_theme(|theme| theme.button.standard_filled.hover.bg = new_hover);
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.sync(&mut cx).unwrap();
+    }
+    runtime.tick(Duration::from_millis(200.0));
+
+    assert_eq!(
+        button
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        new_hover.rgba()
+    );
+}
+
+#[test]
+fn stale_motion_interaction_starts_from_current_theme_previous_state() {
+    let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
+    let mut button = Button::standard("Save");
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.register(&mut cx);
+    }
+
+    let new_idle = Color::new(230, 240, 252);
+    let new_hover = Color::new(198, 222, 250);
+    context.patch_theme(|theme| {
+        theme.button.standard_filled.idle.bg = new_idle;
+        theme.button.standard_filled.hover.bg = new_hover;
+    });
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button
+            .update(ButtonInteraction::HoverEnter, &mut cx)
+            .unwrap();
+    }
+
+    assert_eq!(
+        button
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        new_idle.rgba()
+    );
+
+    runtime.tick(Duration::from_millis(200.0));
+    assert_eq!(
+        button
+            .motion_value(&runtime)
+            .unwrap()
+            .unwrap()
+            .tokens
+            .bg
+            .rgba(),
+        new_hover.rgba()
+    );
+}
+
+#[test]
 fn registered_hover_transitions_runtime_motion() {
     let mut runtime = MotionRuntime::new();
     let mut context = ComponentContext::adwaita();

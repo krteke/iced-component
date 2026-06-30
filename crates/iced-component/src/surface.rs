@@ -7,7 +7,7 @@ use aura_anim::prelude::{MotionError, MotionRuntime, Timing};
 use iced::Length;
 
 use crate::{
-    component::{ComponentUpdateCx, ComponentViewCx, MotionSlot},
+    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot},
     theme::{SurfaceRole, SurfaceStyleTokens},
 };
 
@@ -179,7 +179,11 @@ impl Surface {
             return;
         }
 
-        let _ = self.motion.register(cx.runtime, self.target_motion());
+        let _ = self.motion.register(
+            cx.runtime,
+            self.target_motion(),
+            cx.context().theme_revision(),
+        );
     }
 
     /// Synchronizes this surface's current motion target with the runtime.
@@ -194,7 +198,7 @@ impl Surface {
         interaction: SurfaceInteraction,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        let initial = self.current_or_target_motion(cx.runtime)?;
+        let initial = self.current_or_target_motion(cx.runtime, cx.context())?;
         match interaction {
             SurfaceInteraction::HoverEnter => self.hovered = true,
             SurfaceInteraction::HoverExit => self.hovered = false,
@@ -209,7 +213,7 @@ impl Surface {
         role: SurfaceRole,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        let initial = self.current_or_target_motion(cx.runtime)?;
+        let initial = self.current_or_target_motion(cx.runtime, cx.context())?;
         self.role = role;
 
         self.animate_from(initial, cx)
@@ -226,7 +230,11 @@ impl Surface {
         }
     }
 
-    /// Returns the current runtime motion value, or `None` if not registered.
+    /// Returns the raw runtime motion value, or `None` if not registered.
+    ///
+    /// This does not validate the current theme revision. Rendering code should
+    /// use [`snapshot`](Self::snapshot), which falls back to current state when
+    /// the runtime value belongs to an older theme.
     pub fn motion_value(
         &self,
         runtime: &MotionRuntime,
@@ -239,7 +247,7 @@ impl Surface {
         Ok(SurfaceSnapshot {
             role: self.role,
             style: SurfaceStyleTokens::from_component_context(cx.context(), self.role),
-            motion: self.current_or_target_motion(cx.runtime)?,
+            motion: self.current_or_target_motion(cx.runtime, cx.context())?,
             hovered: self.hovered,
         })
     }
@@ -273,10 +281,11 @@ impl Surface {
     fn current_or_target_motion(
         &self,
         runtime: &MotionRuntime,
+        context: &ComponentContext,
     ) -> Result<SurfaceMotion, MotionError> {
         Ok(self
             .motion
-            .value(runtime)?
+            .value_if_current(runtime, context.theme_revision())?
             .copied()
             .unwrap_or_else(|| self.target_motion()))
     }
@@ -327,6 +336,32 @@ mod tests {
             context.theme().theme().surface.raised.bg
         );
         assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
+    }
+
+    #[test]
+    fn snapshot_ignores_stale_runtime_motion_after_theme_change() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
+        let mut surface = Surface::raised();
+
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            surface
+                .update(SurfaceInteraction::HoverEnter, &mut cx)
+                .unwrap();
+        }
+        runtime.tick(Duration::from_millis(1.0));
+        let stale_motion = surface.motion_value(&runtime).unwrap().unwrap();
+        let scoped_bg = "#ddeeff".parse().unwrap();
+
+        context.patch_theme(|theme| theme.surface.raised.bg = scoped_bg);
+
+        let cx = ComponentViewCx::new(&runtime, &context);
+        let snapshot = surface.snapshot(&cx).unwrap();
+
+        assert!(stale_motion.elevation < 1.15);
+        assert_eq!(snapshot.style.background, scoped_bg);
+        assert_approx_eq!(f32, snapshot.motion.elevation, 1.15);
     }
 
     #[test]
