@@ -1,12 +1,11 @@
 //! Iced view builder for animated surfaces.
 
 use aura_anim::prelude::MotionError;
-use iced::border::Radius;
 use iced::widget::{container, mouse_area};
-use iced::{Background, Border, Color, Element, Length, Shadow, Vector};
+use iced::{Background, Border, Color, Element, Shadow, Vector};
 use spectrum_theme::iced::{IcedColorAdapter, IcedRadiusAdapter, IcedShadowAdapter};
 
-use super::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceSnapshot};
+use super::{ResolvedSurfaceLayout, Surface, SurfaceEvent, SurfaceInteraction, SurfaceSnapshot};
 use crate::component::ComponentViewCx;
 
 /// Iced view builder for [`Surface`].
@@ -14,45 +13,7 @@ pub struct SurfaceView<'a, Message> {
     snapshot: SurfaceSnapshot,
     content: Element<'a, Message>,
     on_event: Option<Box<dyn Fn(SurfaceEvent) -> Message + 'a>>,
-    layout: SurfaceLayout,
-}
-
-/// Stable surface layout configuration.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SurfaceLayout {
-    pub(crate) padding: f32,
-    pub(crate) width: Option<Length>,
-    pub(crate) height: Option<Length>,
-}
-
-impl SurfaceLayout {
-    /// Creates a stable surface layout configuration.
-    #[must_use]
-    pub const fn new(padding: f32, width: Option<Length>, height: Option<Length>) -> Self {
-        Self {
-            padding,
-            width,
-            height,
-        }
-    }
-
-    /// Returns the inner padding.
-    #[must_use]
-    pub const fn padding(self) -> f32 {
-        self.padding
-    }
-
-    /// Returns the fixed width, if configured.
-    #[must_use]
-    pub const fn width(self) -> Option<Length> {
-        self.width
-    }
-
-    /// Returns the fixed height, if configured.
-    #[must_use]
-    pub const fn height(self) -> Option<Length> {
-        self.height
-    }
+    layout: ResolvedSurfaceLayout,
 }
 
 impl Surface {
@@ -82,7 +43,7 @@ impl Surface {
         Ok(SurfaceView::from_parts(
             self.snapshot(cx)?,
             child,
-            self.layout(),
+            self.layout().resolve(cx.context()),
         ))
     }
 }
@@ -91,7 +52,7 @@ impl<'a, Message> SurfaceView<'a, Message> {
     pub(crate) fn from_parts(
         snapshot: SurfaceSnapshot,
         content: impl Into<Element<'a, Message>>,
-        layout: SurfaceLayout,
+        layout: ResolvedSurfaceLayout,
     ) -> Self {
         Self {
             snapshot,
@@ -142,47 +103,27 @@ where
 /// Converts an animated surface snapshot into an Iced container style.
 #[must_use]
 pub fn surface_style(snapshot: SurfaceSnapshot) -> container::Style {
-    let style = snapshot.style;
     let motion = snapshot.motion;
+    let tokens = motion.tokens;
 
     container::Style {
-        text_color: Some(style.foreground.color()),
-        background: Some(Background::Color(color_with_alpha(
-            style.background.color(),
-            motion.bg_alpha,
-        ))),
+        text_color: Some(tokens.fg.color()),
+        background: Some(Background::Color(color_with_alpha(tokens.bg.color(), 1.0))),
         border: Border {
-            color: color_with_alpha(style.border.color(), motion.border_alpha),
-            width: motion.border_width,
-            radius: scaled_radius(style.radius.radius_px(), motion.radius_scale),
+            color: tokens.border.color(),
+            width: tokens.border_width.value(),
+            radius: tokens.radius.radius_px(),
         },
-        shadow: style
-            .shadow
-            .map(|shadow| scaled_shadow(shadow.shadow_px(), motion))
-            .unwrap_or_default(),
+        shadow: scaled_shadow(tokens.shadow.shadow_px(), motion.elevation),
         snap: true,
     }
 }
 
-fn scaled_shadow(shadow: Shadow, motion: crate::surface::SurfaceMotion) -> Shadow {
-    let intensity = motion.elevation * motion.shadow_alpha;
-
+fn scaled_shadow(shadow: Shadow, elevation: f32) -> Shadow {
     Shadow {
-        color: color_with_alpha(shadow.color, intensity),
-        offset: Vector::new(
-            shadow.offset.x * motion.elevation,
-            shadow.offset.y * motion.elevation,
-        ),
-        blur_radius: shadow.blur_radius * motion.elevation * motion.shadow_blur,
-    }
-}
-
-fn scaled_radius(radius: Radius, scale: f32) -> Radius {
-    Radius {
-        top_left: radius.top_left * scale,
-        top_right: radius.top_right * scale,
-        bottom_right: radius.bottom_right * scale,
-        bottom_left: radius.bottom_left * scale,
+        color: color_with_alpha(shadow.color, elevation),
+        offset: Vector::new(shadow.offset.x * elevation, shadow.offset.y * elevation),
+        blur_radius: shadow.blur_radius * elevation,
     }
 }
 

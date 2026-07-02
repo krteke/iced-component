@@ -17,6 +17,13 @@ pub use context::{ComponentContext, ComponentUpdateCx, ComponentViewCx, ThemeRev
 /// Components can be constructed before an application has a `MotionRuntime`.
 /// Calling [`register`](Self::register) later inserts the animation into the
 /// application-owned runtime exactly once.
+///
+/// The slot records the [`ThemeRevision`] associated with the registered
+/// runtime value. Rendering code should use [`value_if_current`](Self::value_if_current)
+/// and fall back to freshly resolved theme tokens when the slot is stale.
+/// Interaction paths that need a fresh starting value after a theme change
+/// should use [`tween_from_to_or_finish`](Self::tween_from_to_or_finish), which
+/// re-registers stale runtime handles from the provided initial value.
 #[derive(Debug)]
 pub struct MotionSlot<T: Animatable> {
     motion: Option<Motion<T>>,

@@ -7,7 +7,7 @@ use iced::Length;
 
 use crate::{
     component::{ComponentUpdateCx, ComponentViewCx},
-    surface::{Surface, SurfaceEvent, SurfaceLayout, SurfaceSnapshot},
+    surface::{Surface, SurfaceEvent, SurfaceLayout, SurfaceSnapshot, SurfaceStyleState},
 };
 
 pub use view::PanelView;
@@ -102,6 +102,11 @@ impl Panel {
         self.surface.set_padding(padding);
     }
 
+    /// Clears this panel's inner padding.
+    pub fn clear_padding(&mut self) {
+        self.surface.clear_padding();
+    }
+
     /// Returns this panel with a fixed rendered width.
     #[must_use]
     pub fn with_width(mut self, width: impl Into<Length>) -> Self {
@@ -155,6 +160,15 @@ impl Panel {
         self.surface.update_event(event, cx)
     }
 
+    /// Sets whether the panel surface is hovered.
+    pub fn set_hovered(
+        &mut self,
+        hovered: bool,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        self.surface.set_hovered(hovered, cx)
+    }
+
     /// Returns a rendering snapshot of the panel surface.
     pub fn snapshot(&self, cx: &ComponentViewCx<'_>) -> Result<SurfaceSnapshot, MotionError> {
         self.surface.snapshot(cx)
@@ -178,6 +192,18 @@ impl Panel {
         &self.surface
     }
 
+    /// Returns whether the panel surface is hovered.
+    #[must_use]
+    pub const fn is_hovered(&self) -> bool {
+        self.surface.is_hovered()
+    }
+
+    /// Returns this panel surface's current visual state.
+    #[must_use]
+    pub const fn style_state(&self) -> SurfaceStyleState {
+        self.surface.style_state()
+    }
+
     /// Returns this panel's mutable backing surface.
     pub fn surface_mut(&mut self) -> &mut Surface {
         &mut self.surface
@@ -197,7 +223,7 @@ impl Panel {
 
     /// Returns this panel's inner padding.
     #[must_use]
-    pub const fn padding(&self) -> f32 {
+    pub const fn padding(&self) -> Option<f32> {
         self.layout().padding()
     }
 
@@ -226,12 +252,15 @@ mod tests {
     use float_cmp::assert_approx_eq;
     use iced::Element;
     use iced::widget::{row, text};
+    use spectrum_theme::Color;
 
     use crate::{
         component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
         panel::Panel,
-        surface::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout},
-        theme::SurfaceRole,
+        surface::{
+            Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout, SurfaceStyleState,
+            SurfaceTreatment, SurfaceVariant,
+        },
     };
 
     #[test]
@@ -243,8 +272,8 @@ mod tests {
 
         let snapshot = panel.snapshot(&cx).unwrap();
 
-        assert_eq!(snapshot.role, SurfaceRole::Raised);
-        assert!(snapshot.style.shadow.is_some());
+        assert_eq!(snapshot.variant, SurfaceVariant::RAISED);
+        assert!(snapshot.motion.tokens.shadow.blur().value() > 0.0);
     }
 
     #[test]
@@ -257,35 +286,41 @@ mod tests {
 
         assert_eq!(panel.title(), Some("Overview"));
         assert_approx_eq!(f32, panel.spacing(), 10.0);
-        assert_approx_eq!(f32, panel.padding(), 16.0);
+        assert_eq!(panel.padding(), Some(16.0));
         assert_eq!(panel.width(), Some(iced::Length::Fixed(240.0)));
         assert_eq!(panel.height(), Some(iced::Length::Fixed(120.0)));
 
         panel.set_title("Details");
         panel.set_spacing(8.0);
         panel.set_layout(SurfaceLayout::new(
-            12.0,
+            Some(12.0),
             Some(iced::Length::Fixed(220.0)),
             None,
         ));
 
         assert_eq!(panel.title(), Some("Details"));
         assert_approx_eq!(f32, panel.spacing(), 8.0);
-        assert_approx_eq!(f32, panel.padding(), 12.0);
+        assert_eq!(panel.padding(), Some(12.0));
         assert_eq!(panel.width(), Some(iced::Length::Fixed(220.0)));
         assert_eq!(panel.height(), None);
 
         panel.clear_title();
+        panel.clear_padding();
         panel.clear_width();
         panel.set_height(96.0);
+
+        assert_eq!(panel.padding(), None);
+        assert_eq!(panel.width(), None);
+        assert_eq!(panel.height(), Some(iced::Length::Fixed(96.0)));
+
         panel.set_surface(Surface::regular().with_padding(6.0));
         panel.surface_mut().set_padding(9.0);
 
         assert_eq!(panel.title(), None);
         assert_eq!(panel.width(), None);
         assert_eq!(panel.height(), None);
-        assert_eq!(panel.surface().role(), SurfaceRole::Regular);
-        assert_approx_eq!(f32, panel.padding(), 9.0);
+        assert_eq!(panel.surface().treatment(), SurfaceTreatment::Plain);
+        assert_eq!(panel.padding(), Some(9.0));
     }
 
     #[test]
@@ -307,7 +342,64 @@ mod tests {
         runtime.tick(Duration::from_millis(200.0));
 
         let cx = ComponentViewCx::new(&runtime, &context);
-        assert_approx_eq!(f32, panel.snapshot(&cx).unwrap().motion.elevation, 1.15);
+        let snapshot = panel.snapshot(&cx).unwrap();
+        assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
+        assert_color_eq(
+            snapshot.motion.tokens.bg,
+            context.theme().theme().surface.raised.hover.bg,
+        );
+    }
+
+    #[test]
+    fn panel_delegates_hover_setter() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
+        let mut panel = Panel::new();
+
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            panel.set_hovered(true, &mut cx).unwrap();
+        }
+        runtime.tick(Duration::from_millis(200.0));
+
+        let cx = ComponentViewCx::new(&runtime, &context);
+
+        assert!(panel.is_hovered());
+        assert_eq!(panel.style_state(), SurfaceStyleState::Hovered);
+        let snapshot = panel.snapshot(&cx).unwrap();
+        assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
+        assert_color_eq(
+            snapshot.motion.tokens.bg,
+            context.theme().theme().surface.raised.hover.bg,
+        );
+    }
+
+    #[test]
+    fn panel_snapshot_uses_current_theme_through_surface() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
+        let mut panel = Panel::new();
+
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            panel.register(&mut cx);
+            panel
+                .update_event(
+                    SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter),
+                    &mut cx,
+                )
+                .unwrap();
+        }
+        runtime.tick(Duration::from_millis(1.0));
+
+        let patched_bg = "#ddeeff".parse().unwrap();
+        context.patch_theme(|theme| theme.surface.raised.hover.bg = patched_bg);
+
+        let cx = ComponentViewCx::new(&runtime, &context);
+        let snapshot = panel.snapshot(&cx).unwrap();
+
+        assert_eq!(snapshot.motion.tokens.bg, patched_bg);
+        assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
     }
 
     #[test]
@@ -335,5 +427,12 @@ mod tests {
             event,
             SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter)
         );
+    }
+
+    fn assert_color_eq(left: Color, right: Color) {
+        assert_eq!(left.red(), right.red());
+        assert_eq!(left.green(), right.green());
+        assert_eq!(left.blue(), right.blue());
+        assert_eq!(left.alpha(), right.alpha());
     }
 }

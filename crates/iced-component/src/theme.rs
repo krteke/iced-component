@@ -2,8 +2,8 @@
 
 mod context;
 mod error;
+pub(crate) mod interpolate;
 mod pack;
-mod surface;
 
 pub use context::ThemeContext;
 pub use error::ThemeLoadError;
@@ -14,15 +14,15 @@ pub use pack::{
     ButtonStandardFilledTokens, ButtonStandardFlatState, ButtonStandardFlatTokens,
     ButtonStandardRaisedState, ButtonStandardRaisedTokens, ButtonSuggestedFilledState,
     ButtonSuggestedFilledTokens, ButtonSuggestedFlatState, ButtonSuggestedFlatTokens,
-    ButtonSuggestedRaisedState, ButtonSuggestedRaisedTokens, ControlTokens, SurfaceRaisedTokens,
-    SurfaceTokens, ThemePack,
+    ButtonSuggestedRaisedState, ButtonSuggestedRaisedTokens, ControlTokens, SurfaceBackgroundState,
+    SurfaceBackgroundTokens, SurfaceRaisedState, SurfaceRaisedTokens, SurfaceRegularState,
+    SurfaceRegularTokens, SurfaceTokens, ThemePack,
 };
 pub use spectrum_theme::{
     Color, ColorParseError, FontStyle, FontStyleParseError, FontWeight, FontWeightParseError,
     Length, LengthParseError, LengthUnit, LineHeight, LineHeightParseError, Radius,
     RadiusParseError, Rgb, Rgba, ShadowError, ShadowLayer, ThemeBuildError,
 };
-pub use surface::{SurfaceRole, SurfaceStyleTokens};
 
 #[cfg(test)]
 mod tests {

@@ -43,13 +43,14 @@ macro_rules! sync_components {
 
 #[cfg(test)]
 mod tests {
-    use aura_anim::prelude::MotionRuntime;
+    use aura_anim::prelude::{Duration, MotionRuntime};
 
     use crate::{
         button::Button,
-        component::{ComponentContext, ComponentUpdateCx},
+        component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
         surface::Surface,
     };
+    use spectrum_theme::Color;
 
     #[test]
     fn register_components_registers_each_component_once() {
@@ -84,5 +85,33 @@ mod tests {
         let changed = crate::sync_components!(cx, [button, surface]).unwrap();
 
         assert!(changed);
+    }
+
+    #[test]
+    fn sync_components_uses_current_theme_revision() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::default();
+        let mut button = Button::standard("Save");
+
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            crate::register_components!(cx, [button]);
+        }
+
+        let patched_bg = Color::new_rgba(221, 238, 255, 255);
+        context.patch_theme(|theme| theme.button.standard_filled.idle.bg = patched_bg);
+
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            assert!(crate::sync_components!(cx, [button]).unwrap());
+        }
+        runtime.tick(Duration::from_millis(200.0));
+
+        let cx = ComponentViewCx::new(&runtime, &context);
+        assert_eq!(button.snapshot(&cx).unwrap().style.background, patched_bg);
+        assert_eq!(
+            button.motion_value(&runtime).unwrap().unwrap().tokens.bg,
+            patched_bg
+        );
     }
 }

@@ -98,7 +98,7 @@ impl Demo {
             .body(
                 column![
                     text("Reusable chrome for future panels").size(14),
-                    text(format!("border {:.2}", status_snapshot.motion.border_alpha)).size(14),
+                    text(format!("elevation {:.2}", status_snapshot.motion.elevation)).size(14),
                 ]
                 .spacing(8),
             )

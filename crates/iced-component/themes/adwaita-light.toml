@@ -10,27 +10,11 @@ bg = "#f6f5f4"
 fg = "#241f31"
 fg_muted = "#5e5c64"
 
-[surface.base]
-bg = "#ffffff"
-fg = "{app.fg}"
-border = "#0000001f"
-radius = "8px"
-
-[surface.raised]
-bg = "#fafafa"
-fg = "{app.fg}"
-border = "{surface.base.border}"
-radius = "8px"
-
-[surface.raised.shadow]
-color = "#00000024"
-offset_x = "0px"
-offset_y = "2px"
-blur = "10px"
-spread = "0px"
-
 [control.border]
 width = "1px"
+
+[control.surface]
+padding = "0px"
 
 [control.button]
 padding_x = "14px"
@@ -39,6 +23,54 @@ padding_y = "8px"
 [control.icon_button]
 size = "40px"
 icon_size = "16px"
+
+[surface.background.idle]
+bg = "{app.bg}"
+fg = "{app.fg}"
+border = "#00000000"
+border_width = "0px"
+radius = "0px"
+
+[surface.background.idle.shadow]
+color = "#00000000"
+offset_x = "0px"
+offset_y = "0px"
+blur = "0px"
+spread = "0px"
+
+[surface.regular.idle]
+bg = "#ffffff"
+fg = "{app.fg}"
+border = "#0000001f"
+border_width = "1px"
+radius = "8px"
+
+[surface.regular.idle.shadow]
+color = "#00000000"
+offset_x = "0px"
+offset_y = "0px"
+blur = "0px"
+spread = "0px"
+
+[surface.regular.hover]
+bg = "#f7f7f7"
+
+[surface.raised.idle]
+bg = "#fafafa"
+fg = "{app.fg}"
+border = "{surface.regular.idle.border}"
+border_width = "1px"
+radius = "8px"
+
+[surface.raised.idle.shadow]
+color = "#00000024"
+offset_x = "0px"
+offset_y = "2px"
+blur = "10px"
+spread = "0px"
+
+[surface.raised.hover]
+bg = "#f1f1f1"
 
 [button.shape.rounded]
 radius = "9px"
@@ -50,9 +82,9 @@ radius = "999px"
 radius = "999px"
 
 [button.standard_filled.idle]
-bg = "{surface.raised.bg}"
+bg = "{surface.raised.idle.bg}"
 fg = "{app.fg}"
-border = "{surface.base.border}"
+border = "{surface.regular.idle.border}"
 border_width = "1px"
 radius = "9px"
 focus_ring = "#1c71d8"
@@ -102,9 +134,9 @@ fg = "{button.standard_filled.disabled.fg}"
 border = "#00000000"
 
 [button.standard_raised.idle]
-bg = "{surface.raised.bg}"
+bg = "{surface.raised.idle.bg}"
 fg = "{app.fg}"
-border = "{surface.base.border}"
+border = "{surface.regular.idle.border}"
 border_width = "1px"
 radius = "9px"
 focus_ring = "#1c71d8"

@@ -9,6 +9,10 @@ use aura_anim::prelude::MotionRuntime;
 use crate::theme::{ThemeContext, ThemeLoadError, ThemePack};
 
 /// Monotonic marker for the theme snapshot carried by a [`ComponentContext`].
+///
+/// This is a cache-invalidating identity, not a user-visible theme version.
+/// Components use it to decide whether a registered runtime motion value still
+/// belongs to the theme snapshot used by the current update or view pass.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
 pub struct ThemeRevision(u64);
 
@@ -21,6 +25,11 @@ impl ThemeRevision {
 }
 
 /// Shared component inputs that can change while the application is running.
+///
+/// This is the only source components should use for theme-dependent values.
+/// Constructors should store stable configuration only; theme tokens are
+/// resolved during `update`, `sync`, `snapshot`, or `view` with the current
+/// context.
 #[derive(Clone)]
 pub struct ComponentContext {
     theme: ThemeContext,
@@ -91,6 +100,10 @@ impl ComponentContext {
     }
 
     /// Returns a context with local theme token changes applied.
+    ///
+    /// Store scoped contexts that need animated continuity. Recreating a scoped
+    /// context every frame produces a fresh [`ThemeRevision`], so existing
+    /// motion values will be treated as stale by design.
     #[must_use]
     pub fn scoped_theme(&self, patch: impl FnOnce(&mut ThemePack)) -> Self {
         Self {

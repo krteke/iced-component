@@ -16,23 +16,11 @@ define_theme_tokens! {
             fg: Color,
             fg_muted: Color,
         }
-        surface {
-            base {
-                bg: Color,
-                fg: Color,
-                border: Color,
-                radius: Radius,
-            }
-            raised {
-                bg: Color,
-                fg: Color,
-                border: Color,
-                radius: Radius,
-                shadow: ShadowLayer,
-            }
-        }
         control {
             border { width: Length }
+            surface {
+                padding: Length,
+            }
             button {
                 padding_x: Length,
                 padding_y: Length,
@@ -51,6 +39,29 @@ define_theme_tokens! {
             radius: Radius,
             focus_ring: Color,
             shadow: ShadowLayer,
+        }
+        #[derive(Copy, Debug, PartialEq)]
+        component SurfaceTokens {
+            bg: Color,
+            fg: Color,
+            border: Color,
+            border_width: Length,
+            radius: Radius,
+            shadow: ShadowLayer,
+        }
+        surface {
+            states background: SurfaceTokens {
+                idle,
+                hover extends idle,
+            }
+            states regular: SurfaceTokens {
+                idle,
+                hover extends idle,
+            }
+            states raised: SurfaceTokens {
+                idle,
+                hover extends idle,
+            }
         }
         button {
             shape {
@@ -88,12 +99,20 @@ define_theme_tokens! {
 
 /// App token group generated for [`ThemePack`].
 pub type AppTokens = ThemePackApp;
-/// Regular surface token group generated for [`ThemePack`].
-pub type SurfaceTokens = ThemePackSurfaceBase;
-/// Raised surface token group generated for [`ThemePack`].
-pub type SurfaceRaisedTokens = ThemePackSurfaceRaised;
 /// Control metrics generated for [`ThemePack`].
 pub type ControlTokens = ThemePackControl;
+/// Background surface token group.
+pub type SurfaceBackgroundTokens = ThemePackBackgroundStates;
+/// Background surface state enum.
+pub type SurfaceBackgroundState = ThemePackBackgroundState;
+/// Regular surface token group.
+pub type SurfaceRegularTokens = ThemePackRegularStates;
+/// Regular surface state enum.
+pub type SurfaceRegularState = ThemePackRegularState;
+/// Raised surface token group.
+pub type SurfaceRaisedTokens = ThemePackRaisedStates;
+/// Raised surface state enum.
+pub type SurfaceRaisedState = ThemePackRaisedState;
 /// Button token component generated for [`ThemePack`].
 pub type ButtonComponentTokens = ButtonTokens;
 /// Standard filled button token group.
@@ -176,7 +195,7 @@ mod tests {
 
     #[test]
     fn default_elevation_is_subtle() {
-        let shadow = ThemePack::adwaita().surface.raised.shadow;
+        let shadow = ThemePack::adwaita().surface.raised.idle.shadow;
 
         assert!(shadow.color().alpha() <= 48);
         assert!(shadow.blur().value() <= 12.0);
@@ -206,10 +225,13 @@ mod tests {
         let theme = ThemePack::try_from_toml(ADWAITA_LIGHT_TOML).unwrap();
 
         assert_eq!(theme.app.bg, "#f6f5f4".parse::<Color>().unwrap());
-        assert_eq!(theme.surface.raised.border, theme.surface.base.border);
+        assert_eq!(
+            theme.surface.raised.idle.border,
+            theme.surface.regular.idle.border
+        );
         assert_eq!(
             theme.button.standard_filled.idle.bg,
-            theme.surface.raised.bg
+            theme.surface.raised.idle.bg
         );
         assert_eq!(
             theme.button.suggested_filled.idle.border,

@@ -1,18 +1,24 @@
 //! Animated themed surface component.
 
+mod layout;
 mod motion;
+mod state;
+mod style;
+#[cfg(test)]
+mod tests;
 mod view;
 
 use aura_anim::prelude::{MotionError, MotionRuntime, Timing};
 use iced::Length;
 
-use crate::{
-    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot},
-    theme::{SurfaceRole, SurfaceStyleTokens},
-};
+use crate::component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot};
 
+pub(crate) use layout::ResolvedSurfaceLayout;
+pub use layout::SurfaceLayout;
 pub use motion::SurfaceMotion;
-pub use view::{SurfaceLayout, SurfaceView, surface_style};
+use state::SurfaceState;
+pub use style::{SurfaceRole, SurfaceTreatment, SurfaceVariant};
+pub use view::{SurfaceView, surface_style};
 
 /// Surface interaction handled by [`Surface`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -30,40 +36,43 @@ pub enum SurfaceEvent {
     Interaction(SurfaceInteraction),
 }
 
+/// Visual state for resolving surface motion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SurfaceStyleState {
+    /// Resting surface state.
+    Idle,
+    /// Pointer hover state.
+    Hovered,
+}
+
 /// Read-only surface state consumed by rendering code.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SurfaceSnapshot {
-    /// Surface visual role.
-    pub role: SurfaceRole,
-    /// Resolved theme style.
-    pub style: SurfaceStyleTokens,
+    /// Surface visual variant.
+    pub variant: SurfaceVariant,
     /// Current animated motion values.
     pub motion: SurfaceMotion,
-    /// Whether the pointer is over the surface.
-    pub hovered: bool,
+    /// Surface visual state.
+    pub style_state: SurfaceStyleState,
 }
 
 /// Stateful animated surface.
 #[derive(Debug)]
 pub struct Surface {
-    role: SurfaceRole,
-    hovered: bool,
-    padding: f32,
-    width: Option<Length>,
-    height: Option<Length>,
+    variant: SurfaceVariant,
+    state: SurfaceState,
+    layout: SurfaceLayout,
     motion: MotionSlot<SurfaceMotion>,
 }
 
 impl Surface {
-    /// Creates an animated surface for a visual role.
+    /// Creates an animated surface for a visual variant.
     #[must_use]
-    pub fn new(role: SurfaceRole) -> Self {
+    pub fn new(variant: impl Into<SurfaceVariant>) -> Self {
         Self {
-            role,
-            hovered: false,
-            padding: 0.0,
-            width: None,
-            height: None,
+            variant: variant.into(),
+            state: SurfaceState::default(),
+            layout: SurfaceLayout::empty(),
             motion: MotionSlot::new(),
         }
     }
@@ -71,42 +80,82 @@ impl Surface {
     /// Creates an app background surface.
     #[must_use]
     pub fn background() -> Self {
-        Self::new(SurfaceRole::Background)
+        Self::new(SurfaceVariant::BACKGROUND)
     }
 
     /// Creates a regular component surface.
     #[must_use]
     pub fn regular() -> Self {
-        Self::new(SurfaceRole::Regular)
+        Self::new(SurfaceVariant::REGULAR)
     }
 
     /// Creates a raised component surface.
     #[must_use]
     pub fn raised() -> Self {
-        Self::new(SurfaceRole::Raised)
+        Self::new(SurfaceVariant::RAISED)
+    }
+
+    /// Returns this surface with a different visual variant.
+    #[must_use]
+    pub fn with_variant(mut self, variant: SurfaceVariant) -> Self {
+        self.variant = variant;
+        self
     }
 
     /// Returns this surface with a different visual role.
     #[must_use]
     pub fn with_role(mut self, role: SurfaceRole) -> Self {
-        self.role = role;
+        self.variant = self.variant.with_role(role);
         self
+    }
+
+    /// Returns this surface with a different visual treatment.
+    #[must_use]
+    pub fn with_treatment(mut self, treatment: SurfaceTreatment) -> Self {
+        self.variant = self.variant.with_treatment(treatment);
+        self
+    }
+
+    /// Returns this surface as an app/page background.
+    #[must_use]
+    pub fn as_background(self) -> Self {
+        self.with_variant(SurfaceVariant::BACKGROUND)
+    }
+
+    /// Returns this surface as a regular container.
+    #[must_use]
+    pub fn as_regular(self) -> Self {
+        self.with_variant(SurfaceVariant::REGULAR)
+    }
+
+    /// Returns this surface as an elevated container.
+    #[must_use]
+    pub fn as_raised(self) -> Self {
+        self.with_variant(SurfaceVariant::RAISED)
+    }
+
+    /// Returns this surface with plain treatment.
+    #[must_use]
+    pub fn plain(self) -> Self {
+        self.with_treatment(SurfaceTreatment::Plain)
+    }
+
+    /// Returns this surface with elevated treatment.
+    #[must_use]
+    pub fn elevated(self) -> Self {
+        self.with_treatment(SurfaceTreatment::Elevated)
     }
 
     /// Returns this surface with a different stable layout configuration.
     #[must_use]
     pub const fn with_layout(mut self, layout: SurfaceLayout) -> Self {
-        self.padding = layout.padding();
-        self.width = layout.width();
-        self.height = layout.height();
+        self.layout = layout;
         self
     }
 
     /// Replaces this surface's stable layout configuration.
     pub fn set_layout(&mut self, layout: SurfaceLayout) {
-        self.padding = layout.padding();
-        self.width = layout.width();
-        self.height = layout.height();
+        self.layout = layout;
     }
 
     /// Returns this surface with explicit inner padding.
@@ -118,7 +167,7 @@ impl Surface {
     /// Returns this surface with explicit inner padding.
     #[must_use]
     pub const fn padding(mut self, padding: f32) -> Self {
-        self.padding = padding;
+        self.layout.padding = Some(padding);
         self
     }
 
@@ -131,7 +180,7 @@ impl Surface {
     /// Returns this surface with a fixed rendered width.
     #[must_use]
     pub fn width(mut self, width: impl Into<Length>) -> Self {
-        self.width = Some(width.into());
+        self.layout.width = Some(width.into());
         self
     }
 
@@ -144,33 +193,38 @@ impl Surface {
     /// Returns this surface with a fixed rendered height.
     #[must_use]
     pub fn height(mut self, height: impl Into<Length>) -> Self {
-        self.height = Some(height.into());
+        self.layout.height = Some(height.into());
         self
     }
 
     /// Updates this surface's inner padding.
     pub fn set_padding(&mut self, padding: f32) {
-        self.padding = padding;
+        self.layout.padding = Some(padding);
+    }
+
+    /// Clears this surface's inner padding.
+    pub fn clear_padding(&mut self) {
+        self.layout.padding = None;
     }
 
     /// Updates this surface's fixed rendered width.
     pub fn set_width(&mut self, width: impl Into<Length>) {
-        self.width = Some(width.into());
+        self.layout.width = Some(width.into());
     }
 
     /// Clears this surface's fixed rendered width.
     pub fn clear_width(&mut self) {
-        self.width = None;
+        self.layout.width = None;
     }
 
     /// Updates this surface's fixed rendered height.
     pub fn set_height(&mut self, height: impl Into<Length>) {
-        self.height = Some(height.into());
+        self.layout.height = Some(height.into());
     }
 
     /// Clears this surface's fixed rendered height.
     pub fn clear_height(&mut self) {
-        self.height = None;
+        self.layout.height = None;
     }
 
     /// Registers the surface motion handle using the current component context.
@@ -181,7 +235,7 @@ impl Surface {
 
         let _ = self.motion.register(
             cx.runtime,
-            self.target_motion(),
+            self.motion_from_ctx(cx.context()),
             cx.context().theme_revision(),
         );
     }
@@ -189,7 +243,7 @@ impl Surface {
     /// Synchronizes this surface's current motion target with the runtime.
     pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
         self.motion
-            .tween_to_or_finish(self.target_motion(), interaction_timing(), cx)
+            .tween_to_or_finish(self.motion_from_ctx(cx.context()), interaction_timing(), cx)
     }
 
     /// Applies a surface interaction and transitions motion when registered.
@@ -198,13 +252,53 @@ impl Surface {
         interaction: SurfaceInteraction,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        let initial = self.current_or_target_motion(cx.runtime, cx.context())?;
-        match interaction {
-            SurfaceInteraction::HoverEnter => self.hovered = true,
-            SurfaceInteraction::HoverExit => self.hovered = false,
-        }
+        let previous = self.state;
+        self.state.apply(interaction);
 
-        self.animate_from(initial, cx)
+        self.animate_from_state(previous, cx)
+    }
+
+    /// Sets whether the surface is hovered and updates its motion target.
+    pub fn set_hovered(
+        &mut self,
+        hovered: bool,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        self.update(
+            if hovered {
+                SurfaceInteraction::HoverEnter
+            } else {
+                SurfaceInteraction::HoverExit
+            },
+            cx,
+        )
+    }
+
+    /// Sets the surface variant and transitions motion when registered.
+    pub fn set_variant(
+        &mut self,
+        variant: SurfaceVariant,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        let previous = self.variant;
+        self.variant = variant;
+
+        self.animate_from_variant(previous, cx)
+    }
+
+    /// Sets this surface as an app/page background.
+    pub fn set_background(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.set_variant(SurfaceVariant::BACKGROUND, cx)
+    }
+
+    /// Sets this surface as a regular container.
+    pub fn set_regular(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.set_variant(SurfaceVariant::REGULAR, cx)
+    }
+
+    /// Sets this surface as an elevated container.
+    pub fn set_raised(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.set_variant(SurfaceVariant::RAISED, cx)
     }
 
     /// Sets the surface role and transitions motion when registered.
@@ -213,10 +307,26 @@ impl Surface {
         role: SurfaceRole,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        let initial = self.current_or_target_motion(cx.runtime, cx.context())?;
-        self.role = role;
+        self.set_variant(self.variant.with_role(role), cx)
+    }
 
-        self.animate_from(initial, cx)
+    /// Sets the surface treatment and transitions motion when registered.
+    pub fn set_treatment(
+        &mut self,
+        treatment: SurfaceTreatment,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        self.set_variant(self.variant.with_treatment(treatment), cx)
+    }
+
+    /// Sets this surface with plain treatment.
+    pub fn set_plain(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.set_treatment(SurfaceTreatment::Plain, cx)
+    }
+
+    /// Sets this surface with elevated treatment.
+    pub fn set_elevated(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
+        self.set_treatment(SurfaceTreatment::Elevated, cx)
     }
 
     /// Applies a surface event.
@@ -244,41 +354,69 @@ impl Surface {
 
     /// Returns a rendering snapshot without exposing internal state.
     pub fn snapshot(&self, cx: &ComponentViewCx<'_>) -> Result<SurfaceSnapshot, MotionError> {
+        let style_state = self.state.style_state();
+        let motion = self.motion_value_for_context(cx.runtime, cx.context())?;
+
         Ok(SurfaceSnapshot {
-            role: self.role,
-            style: SurfaceStyleTokens::from_component_context(cx.context(), self.role),
-            motion: self.current_or_target_motion(cx.runtime, cx.context())?,
-            hovered: self.hovered,
+            variant: self.variant,
+            motion,
+            style_state,
         })
+    }
+
+    /// Returns this surface visual variant.
+    #[must_use]
+    pub const fn variant(&self) -> SurfaceVariant {
+        self.variant
     }
 
     /// Returns this surface visual role.
     #[must_use]
     pub const fn role(&self) -> SurfaceRole {
-        self.role
+        self.variant.role
+    }
+
+    /// Returns this surface visual treatment.
+    #[must_use]
+    pub const fn treatment(&self) -> SurfaceTreatment {
+        self.variant.treatment
     }
 
     /// Returns whether the pointer is over this surface.
     #[must_use]
     pub const fn is_hovered(&self) -> bool {
-        self.hovered
+        self.state.is_hovered()
+    }
+
+    /// Returns this surface's current visual state.
+    #[must_use]
+    pub const fn style_state(&self) -> SurfaceStyleState {
+        self.state.style_state()
     }
 
     /// Returns this surface's stable layout configuration.
     #[must_use]
     pub const fn layout(&self) -> SurfaceLayout {
-        SurfaceLayout {
-            padding: self.padding,
-            width: self.width,
-            height: self.height,
-        }
+        self.layout
     }
 
-    fn target_motion(&self) -> SurfaceMotion {
-        SurfaceMotion::for_role(self.role, self.hovered)
+    fn motion_from_ctx(&self, context: &ComponentContext) -> SurfaceMotion {
+        self.motion_from_state(context, self.state)
     }
 
-    fn current_or_target_motion(
+    fn motion_from_state(&self, context: &ComponentContext, state: SurfaceState) -> SurfaceMotion {
+        SurfaceMotion::from_theme(context.theme().theme(), self.variant, state.style_state())
+    }
+
+    fn motion_from_variant(
+        &self,
+        context: &ComponentContext,
+        variant: SurfaceVariant,
+    ) -> SurfaceMotion {
+        SurfaceMotion::from_theme(context.theme().theme(), variant, self.state.style_state())
+    }
+
+    fn motion_value_for_context(
         &self,
         runtime: &MotionRuntime,
         context: &ComponentContext,
@@ -287,18 +425,44 @@ impl Surface {
             .motion
             .value_if_current(runtime, context.theme_revision())?
             .copied()
-            .unwrap_or_else(|| self.target_motion()))
+            .unwrap_or_else(|| self.motion_from_ctx(context)))
     }
 
-    fn animate_from(
+    fn animate_from_state(
         &mut self,
-        initial: SurfaceMotion,
+        previous: SurfaceState,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        let target = self.target_motion();
-        if initial == target && !self.motion.is_registered() {
+        if previous == self.state && !self.motion.is_registered() {
             return Ok(false);
         }
+
+        let initial = self
+            .motion
+            .value_if_current(cx.runtime, cx.context().theme_revision())?
+            .copied()
+            .unwrap_or_else(|| self.motion_from_state(cx.context(), previous));
+        let target = self.motion_from_ctx(cx.context());
+
+        self.motion
+            .tween_from_to_or_finish(initial, target, interaction_timing(), cx)
+    }
+
+    fn animate_from_variant(
+        &mut self,
+        previous: SurfaceVariant,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        if previous == self.variant && !self.motion.is_registered() {
+            return Ok(false);
+        }
+
+        let initial = self
+            .motion
+            .value_if_current(cx.runtime, cx.context().theme_revision())?
+            .copied()
+            .unwrap_or_else(|| self.motion_from_variant(cx.context(), previous));
+        let target = self.motion_from_ctx(cx.context());
 
         self.motion
             .tween_from_to_or_finish(initial, target, interaction_timing(), cx)
@@ -307,191 +471,4 @@ impl Surface {
 
 fn interaction_timing() -> Timing {
     Timing::ease_out(200.0)
-}
-
-#[cfg(test)]
-mod tests {
-    use aura_anim::prelude::*;
-    use float_cmp::assert_approx_eq;
-    use iced::Element;
-
-    use crate::{
-        component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
-        surface::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout, surface_style},
-        theme::SurfaceRole,
-    };
-
-    #[test]
-    fn snapshot_resolves_surface_tokens() {
-        let runtime = MotionRuntime::new();
-        let context = ComponentContext::adwaita();
-        let cx = ComponentViewCx::new(&runtime, &context);
-        let surface = Surface::raised();
-
-        let snapshot = surface.snapshot(&cx).unwrap();
-
-        assert_eq!(snapshot.role, SurfaceRole::Raised);
-        assert_eq!(
-            snapshot.style.background,
-            context.theme().theme().surface.raised.bg
-        );
-        assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
-    }
-
-    #[test]
-    fn snapshot_ignores_stale_runtime_motion_after_theme_change() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = ComponentContext::adwaita();
-        let mut surface = Surface::raised();
-
-        {
-            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
-            surface
-                .update(SurfaceInteraction::HoverEnter, &mut cx)
-                .unwrap();
-        }
-        runtime.tick(Duration::from_millis(1.0));
-        let stale_motion = surface.motion_value(&runtime).unwrap().unwrap();
-        let scoped_bg = "#ddeeff".parse().unwrap();
-
-        context.patch_theme(|theme| theme.surface.raised.bg = scoped_bg);
-
-        let cx = ComponentViewCx::new(&runtime, &context);
-        let snapshot = surface.snapshot(&cx).unwrap();
-
-        assert!(stale_motion.elevation < 1.15);
-        assert_eq!(snapshot.style.background, scoped_bg);
-        assert_approx_eq!(f32, snapshot.motion.elevation, 1.15);
-    }
-
-    #[test]
-    fn first_hover_registers_runtime_motion() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = ComponentContext::adwaita();
-        let mut surface = Surface::raised();
-
-        let changed = {
-            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
-            surface
-                .update(SurfaceInteraction::HoverEnter, &mut cx)
-                .unwrap()
-        };
-        runtime.tick(Duration::from_millis(200.0));
-
-        assert!(changed);
-        assert_eq!(runtime.motion_count(), 1);
-        assert_approx_eq!(
-            f32,
-            surface.motion_value(&runtime).unwrap().unwrap().elevation,
-            1.15
-        );
-    }
-
-    #[test]
-    fn registered_hover_animates_elevation() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = ComponentContext::adwaita();
-        let mut surface = Surface::raised();
-
-        {
-            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
-            surface.register(&mut cx);
-            surface
-                .update_event(
-                    SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter),
-                    &mut cx,
-                )
-                .unwrap();
-        }
-        runtime.tick(Duration::from_millis(200.0));
-
-        let motion = surface.motion_value(&runtime).unwrap().unwrap();
-        assert_approx_eq!(f32, motion.elevation, 1.15);
-        assert_approx_eq!(f32, motion.radius_scale, 1.02);
-        assert_approx_eq!(f32, motion.shadow_blur, 1.06);
-    }
-
-    #[test]
-    fn set_role_updates_style_and_motion_target() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = ComponentContext::adwaita();
-        let mut surface = Surface::regular();
-
-        let changed = {
-            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
-            surface.set_role(SurfaceRole::Raised, &mut cx).unwrap()
-        };
-        runtime.tick(Duration::from_millis(200.0));
-        let cx = ComponentViewCx::new(&runtime, &context);
-        let snapshot = surface.snapshot(&cx).unwrap();
-
-        assert!(changed);
-        assert_eq!(snapshot.role, SurfaceRole::Raised);
-        assert_eq!(
-            snapshot.style.background,
-            context.theme().theme().surface.raised.bg
-        );
-        assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
-    }
-
-    #[test]
-    fn layout_builders_and_setters_update_stable_config() {
-        let mut surface = Surface::raised()
-            .with_padding(10.0)
-            .with_width(200.0)
-            .with_height(96.0);
-
-        assert_approx_eq!(f32, surface.layout().padding(), 10.0);
-        assert_eq!(surface.layout().width(), Some(iced::Length::Fixed(200.0)));
-        assert_eq!(surface.layout().height(), Some(iced::Length::Fixed(96.0)));
-
-        surface.set_padding(14.0);
-        surface.set_width(240.0);
-        surface.clear_height();
-
-        assert_approx_eq!(f32, surface.layout().padding(), 14.0);
-        assert_eq!(surface.layout().width(), Some(iced::Length::Fixed(240.0)));
-        assert_eq!(surface.layout().height(), None);
-
-        surface.set_layout(SurfaceLayout::new(
-            8.0,
-            None,
-            Some(iced::Length::Fixed(72.0)),
-        ));
-
-        assert_approx_eq!(f32, surface.layout().padding(), 8.0);
-        assert_eq!(surface.layout().width(), None);
-        assert_eq!(surface.layout().height(), Some(iced::Length::Fixed(72.0)));
-    }
-
-    #[test]
-    fn view_builds_iced_element_and_style() {
-        #[derive(Clone)]
-        enum Message {
-            Surface(SurfaceEvent),
-        }
-
-        let runtime = MotionRuntime::new();
-        let context = ComponentContext::adwaita();
-        let cx = ComponentViewCx::new(&runtime, &context);
-        let surface = Surface::raised().with_padding(12.0).with_width(180.0);
-        let snapshot = surface.snapshot(&cx).unwrap();
-        let style = surface_style(snapshot);
-
-        assert!(style.shadow.blur_radius > 0.0);
-        assert_approx_eq!(f32, style.border.width, 1.0);
-        assert!(style.border.radius.top_left > 0.0);
-
-        let view = surface
-            .view(&cx, iced::widget::text("Surface"))
-            .connect(Message::Surface);
-        let _element: Element<'_, Message> = view.into();
-
-        let Message::Surface(event) =
-            Message::Surface(SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter));
-        assert_eq!(
-            event,
-            SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter)
-        );
-    }
 }

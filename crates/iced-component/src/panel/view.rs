@@ -7,13 +7,13 @@ use iced::widget::{Column, text};
 use super::Panel;
 use crate::{
     component::ComponentViewCx,
-    surface::{SurfaceEvent, SurfaceLayout, SurfaceSnapshot, SurfaceView},
+    surface::{ResolvedSurfaceLayout, SurfaceEvent, SurfaceSnapshot, SurfaceView},
 };
 
 /// Iced view builder for [`Panel`].
 pub struct PanelView<'a, Message> {
     snapshot: SurfaceSnapshot,
-    layout: SurfaceLayout,
+    layout: ResolvedSurfaceLayout,
     title: Option<&'a str>,
     spacing: f32,
     header: Option<Element<'a, Message>>,
@@ -43,7 +43,7 @@ impl Panel {
     {
         Ok(PanelView {
             snapshot: self.surface.snapshot(cx)?,
-            layout: self.surface.layout(),
+            layout: self.surface.layout().resolve(cx.context()),
             title: self.title.as_deref(),
             spacing: self.spacing,
             header: None,

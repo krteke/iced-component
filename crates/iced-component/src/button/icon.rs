@@ -350,27 +350,46 @@ impl IconButton {
     where
         Message: Clone + 'a,
     {
+        self.try_view(cx)
+            .expect("button motion handle belongs to the provided runtime")
+    }
+
+    /// Tries to build an Iced view for this icon button.
+    pub fn try_view<'a, Message>(
+        &'a self,
+        cx: &ComponentViewCx<'_>,
+    ) -> Result<ButtonView<'a, Message>, MotionError>
+    where
+        Message: Clone + 'a,
+    {
         let metrics = &cx.context().theme().theme().control.icon_button;
-        let size = match self.size {
-            IconButtonSize::Default => metrics.size.value(),
-            IconButtonSize::Fixed(size) => size,
-        };
-        let snapshot = self
-            .button
-            .snapshot(cx)
-            .expect("button motion handle belongs to the provided runtime");
+        let snapshot = self.button.snapshot(cx)?;
         let icon = self.icon_element(metrics.icon_size.value(), snapshot.style.foreground.color());
 
-        ButtonView::from_parts(
+        Ok(ButtonView::from_parts(
             snapshot,
             icon,
             ResolvedButtonLayout {
                 padding: [0.0, 0.0],
-                width: Some(Length::Fixed(size)),
-                height: Some(Length::Fixed(size)),
+                width: Some(Length::Fixed(self.resolved_size(cx))),
+                height: Some(Length::Fixed(self.resolved_size(cx))),
                 center_content: true,
             },
-        )
+        ))
+    }
+
+    fn resolved_size(&self, cx: &ComponentViewCx<'_>) -> f32 {
+        match self.size {
+            IconButtonSize::Default => cx
+                .context()
+                .theme()
+                .theme()
+                .control
+                .icon_button
+                .size
+                .value(),
+            IconButtonSize::Fixed(size) => size,
+        }
     }
 
     fn icon_element<'a, Message>(
@@ -399,6 +418,8 @@ impl IconButton {
 #[cfg(test)]
 mod tests {
     use aura_anim::prelude::*;
+    use float_cmp::assert_approx_eq;
+    use spectrum_theme::{Color, Length as SpectrumLength, LengthUnit};
 
     use crate::{
         button::{
@@ -443,6 +464,26 @@ mod tests {
         let cx = ComponentViewCx::new(&runtime, &context);
         let snapshot = icon.snapshot(&cx).unwrap();
         assert_eq!(snapshot.style_state, ButtonStyleState::Hovered);
+    }
+
+    #[test]
+    fn icon_button_snapshot_uses_current_theme_through_inner_button() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
+        let mut icon = IconButton::svg_bytes(TEST_ICON);
+
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            icon.register(&mut cx);
+            icon.update(ButtonInteraction::HoverEnter, &mut cx).unwrap();
+        }
+        runtime.tick(Duration::from_millis(1.0));
+
+        let hover_bg = Color::new_rgba(221, 238, 255, 255);
+        context.patch_theme(|theme| theme.button.standard_filled.hover.bg = hover_bg);
+
+        let cx = ComponentViewCx::new(&runtime, &context);
+        assert_eq!(icon.snapshot(&cx).unwrap().style.background, hover_bg);
     }
 
     #[test]
@@ -517,7 +558,22 @@ mod tests {
         let cx = ComponentViewCx::new(&runtime, &context);
         let icon = IconButton::svg_bytes(TEST_ICON);
 
-        let view = icon.view(&cx).connect((), |_| ());
+        let view = icon.try_view(&cx).unwrap().connect((), |_| ());
         let _element: Element<'_, ()> = view.into();
+    }
+
+    #[test]
+    fn icon_button_default_size_uses_current_theme_metrics() {
+        let runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
+        let icon = IconButton::svg_bytes(TEST_ICON);
+
+        context.patch_theme(|theme| {
+            theme.control.icon_button.size = SpectrumLength::new(48.0, LengthUnit::Px).unwrap();
+        });
+
+        let cx = ComponentViewCx::new(&runtime, &context);
+        assert_approx_eq!(f32, icon.resolved_size(&cx), 48.0);
+        assert_approx_eq!(f32, icon.size(36.0).resolved_size(&cx), 36.0);
     }
 }

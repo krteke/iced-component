@@ -6,8 +6,7 @@ use iced::widget::{column, container, row, text};
 use iced::{Element, Fill, Subscription, Task, Theme, application, time};
 use iced_component::anim::{MotionError, MotionRuntime};
 use iced_component::component::{ComponentContext, ComponentUpdateCx, ComponentViewCx};
-use iced_component::surface::{Surface, SurfaceEvent, SurfaceInteraction};
-use iced_component::theme::SurfaceRole;
+use iced_component::surface::{Surface, SurfaceEvent, SurfaceInteraction, SurfaceTreatment};
 
 fn main() -> iced::Result {
     application(Demo::new, Demo::update, Demo::view)
@@ -65,11 +64,11 @@ impl Demo {
                 let result = {
                     let result = self.panel.update_event(event, &mut cx);
                     let role_result = match event {
-                        SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter) => {
-                            self.panel.set_role(SurfaceRole::Raised, &mut cx)
-                        }
+                        SurfaceEvent::Interaction(SurfaceInteraction::HoverEnter) => self
+                            .panel
+                            .set_treatment(SurfaceTreatment::Elevated, &mut cx),
                         SurfaceEvent::Interaction(SurfaceInteraction::HoverExit) => {
-                            self.panel.set_role(SurfaceRole::Regular, &mut cx)
+                            self.panel.set_treatment(SurfaceTreatment::Plain, &mut cx)
                         }
                     };
                     result.and(role_result)
@@ -104,7 +103,7 @@ impl Demo {
                 &cx,
                 column![
                     text("Role-switching surface").size(18),
-                    text(format!("border {:.2}", panel_snapshot.motion.border_alpha)).size(14),
+                    text(format!("elevation {:.2}", panel_snapshot.motion.elevation)).size(14),
                 ]
                 .spacing(8),
             )
