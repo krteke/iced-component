@@ -8,7 +8,7 @@ use aura_anim::{
         runtime::PlaybackId,
         traits::{Animatable, IntoMotionAnimation},
     },
-    prelude::{Motion, MotionError, MotionRuntime, Timing, tween_to},
+    prelude::{Animation, Motion, MotionError, MotionRuntime, Timing, tween_to},
 };
 pub use context::{ComponentContext, ComponentUpdateCx, ComponentViewCx, ThemeRevision};
 
@@ -136,6 +136,27 @@ impl<T: Animatable> MotionSlot<T> {
         let motion = self.register_fresh_if_stale(cx.runtime, initial, theme_revision, timing)?;
 
         motion.play(tween_to(target, timing), cx.runtime)?;
+        finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
+        self.theme_revision = Some(theme_revision);
+        Ok(true)
+    }
+
+    /// Registers from `initial` when needed, plays an arbitrary animation, and
+    /// finishes it when reduced motion is enabled.
+    pub fn play_from_or_finish<A>(
+        &mut self,
+        initial: T,
+        playback: A,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError>
+    where
+        A: Animation<T>,
+    {
+        let theme_revision = cx.context().theme_revision();
+        let motion =
+            self.register_fresh_if_stale(cx.runtime, initial, theme_revision, Timing::default())?;
+
+        motion.play(playback, cx.runtime)?;
         finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
         self.theme_revision = Some(theme_revision);
         Ok(true)

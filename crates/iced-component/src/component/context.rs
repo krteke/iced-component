@@ -6,7 +6,10 @@ use std::{
 
 use aura_anim::prelude::MotionRuntime;
 
-use crate::theme::{ThemeContext, ThemeLoadError, ThemePack};
+use crate::{
+    motions::AnimationContext,
+    theme::{ThemeContext, ThemeLoadError, ThemePack},
+};
 
 /// Monotonic marker for the theme snapshot carried by a [`ComponentContext`].
 ///
@@ -33,6 +36,7 @@ impl ThemeRevision {
 #[derive(Clone)]
 pub struct ComponentContext {
     theme: ThemeContext,
+    animation: AnimationContext,
     theme_revision: ThemeRevision,
     reduce_motion: bool,
 }
@@ -40,9 +44,10 @@ pub struct ComponentContext {
 impl ComponentContext {
     /// Creates a component context from explicit inputs.
     #[must_use]
-    pub fn new(theme: ThemeContext) -> Self {
+    pub fn new(theme: ThemeContext, animation: AnimationContext) -> Self {
         Self {
             theme,
+            animation,
             theme_revision: ThemeRevision::next(),
             reduce_motion: false,
         }
@@ -51,13 +56,24 @@ impl ComponentContext {
     /// Creates a context from the default Adwaita-like theme.
     #[must_use]
     pub fn adwaita() -> Self {
-        Self::new(ThemeContext::adwaita())
+        Self::new(ThemeContext::adwaita(), AnimationContext::adwaita())
     }
 
     /// Returns the theme context.
     #[must_use]
     pub const fn theme(&self) -> &ThemeContext {
         &self.theme
+    }
+
+    /// Returns the animation context.
+    #[must_use]
+    pub const fn animation(&self) -> &AnimationContext {
+        &self.animation
+    }
+
+    /// Returns the mutable animation provider context.
+    pub fn animation_mut(&mut self) -> &mut AnimationContext {
+        &mut self.animation
     }
 
     /// Returns the revision of the current theme snapshot.
@@ -70,6 +86,18 @@ impl ComponentContext {
     pub fn set_theme(&mut self, theme: ThemeContext) {
         self.theme = theme;
         self.bump_theme_revision();
+    }
+
+    /// Replaces the animation provider context.
+    pub fn set_animation(&mut self, animation: AnimationContext) {
+        self.animation = animation;
+    }
+
+    /// Returns this context with a different animation provider context.
+    #[must_use]
+    pub fn with_animation(mut self, animation: AnimationContext) -> Self {
+        self.animation = animation;
+        self
     }
 
     /// Replaces the theme with an owned theme pack.
@@ -108,6 +136,7 @@ impl ComponentContext {
     pub fn scoped_theme(&self, patch: impl FnOnce(&mut ThemePack)) -> Self {
         Self {
             theme: self.theme.scoped(patch),
+            animation: self.animation.clone(),
             theme_revision: ThemeRevision::next(),
             reduce_motion: self.reduce_motion,
         }

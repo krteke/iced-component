@@ -10,10 +10,7 @@ mod style;
 mod tests;
 mod view;
 
-use aura_anim::{
-    core::runtime::{MotionError, MotionRuntime},
-    prelude::Timing,
-};
+use aura_anim::core::runtime::{MotionError, MotionRuntime};
 use iced::Length;
 
 use crate::{
@@ -24,7 +21,10 @@ use crate::{
 pub use animated::{ButtonEvent, ButtonInteraction, ButtonSnapshot};
 pub use content::{ButtonContent, ButtonLayout};
 pub use icon::{IconButton, IconButtonSize, IconSource};
-pub use motion::ButtonMotion;
+pub use motion::{
+    ButtonAnimationBuilder, ButtonAnimationProvider, ButtonMotion, ButtonMotionTransition,
+    ButtonMotionTrigger, trigger_from_interaction,
+};
 pub use style::{
     ButtonResolvedStyle, ButtonRole, ButtonShape, ButtonStyleState, ButtonTreatment, ButtonVariant,
 };
@@ -343,8 +343,11 @@ impl Button {
 
     /// Synchronizes this button's current motion target with the runtime.
     pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
-        self.motion
-            .tween_to_or_finish(self.motion_from_ctx(cx.context()), interaction_timing(), cx)
+        if !self.motion.is_registered() {
+            return Ok(false);
+        }
+
+        self.animate_to_current(ButtonMotionTrigger::Sync, cx)
     }
 
     /// Applies a button interaction and transitions motion when registered.
@@ -356,7 +359,7 @@ impl Button {
         let previous = self.state;
         self.state.apply(interaction);
 
-        self.animate_from_state(previous, cx)
+        self.animate_from_state(previous, motion::trigger_from_interaction(interaction), cx)
     }
 
     /// Enables or disables this button and updates its motion target.
@@ -375,8 +378,12 @@ impl Button {
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<Option<Action>, MotionError> {
         let previous = self.state;
+        let timing = match &event {
+            ButtonEvent::Interaction(interaction) => motion::trigger_from_interaction(*interaction),
+            ButtonEvent::Pressed(_) => ButtonMotionTrigger::PressUp,
+        };
         let action = self.state.apply_event(event);
-        self.animate_from_state(previous, cx)?;
+        self.animate_from_state(previous, timing, cx)?;
         Ok(action)
     }
 
@@ -486,6 +493,7 @@ impl Button {
     fn animate_from_state(
         &mut self,
         previous: ButtonState,
+        trigger: ButtonMotionTrigger,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         if previous == self.state && !self.motion.is_registered() {
@@ -499,11 +507,46 @@ impl Button {
             .unwrap_or_else(|| self.motion_from_state(cx.context(), previous));
         let target = self.motion_from_ctx(cx.context());
 
-        self.motion
-            .tween_from_to_or_finish(initial, target, interaction_timing(), cx)
+        self.play_motion(
+            ButtonMotionTransition {
+                from: initial,
+                to: target,
+                trigger,
+            },
+            cx,
+        )
     }
-}
 
-fn interaction_timing() -> Timing {
-    Timing::ease_out(200.0)
+    fn animate_to_current(
+        &mut self,
+        trigger: ButtonMotionTrigger,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        let initial = self
+            .motion
+            .value_if_current(cx.runtime, cx.context().theme_revision())?
+            .copied()
+            .unwrap_or_else(|| self.motion_from_ctx(cx.context()));
+        let target = self.motion_from_ctx(cx.context());
+
+        self.play_motion(
+            ButtonMotionTransition {
+                from: initial,
+                to: target,
+                trigger,
+            },
+            cx,
+        )
+    }
+
+    fn play_motion(
+        &mut self,
+        transition: ButtonMotionTransition,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        let initial = transition.from;
+        let animation = cx.context().animation().button().build(&transition);
+
+        self.motion.play_from_or_finish(initial, animation, cx)
+    }
 }

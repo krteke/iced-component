@@ -1,11 +1,14 @@
+use std::sync::Arc;
+
 use aura_anim::prelude::*;
 use float_cmp::assert_approx_eq;
 use spectrum_theme::Color;
 
 use crate::{
     button::{
-        Button, ButtonContent, ButtonRole, ButtonShape, ButtonStyleState, ButtonTreatment,
-        ButtonVariant,
+        Button, ButtonAnimationBuilder, ButtonAnimationProvider, ButtonContent,
+        ButtonMotionTransition, ButtonMotionTrigger, ButtonRole, ButtonShape, ButtonStyleState,
+        ButtonTreatment, ButtonVariant,
     },
     component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
     theme::ThemePack,
@@ -269,6 +272,45 @@ fn update_respects_context_reduced_motion() {
             .hover
             .bg
             .rgba()
+    );
+}
+
+#[test]
+fn button_uses_animation_provider_from_component_context() {
+    struct SlowFocusProvider;
+
+    impl ButtonAnimationProvider for SlowFocusProvider {
+        fn button_animation(&self, transition: &ButtonMotionTransition) -> ButtonAnimationBuilder {
+            let timing = match transition.trigger {
+                ButtonMotionTrigger::Focus => Timing::linear(1000.0),
+                _ => Timing::linear(100.0),
+            };
+
+            Arc::new(move |transition| {
+                Tween::between(transition.from, transition.to, timing).boxed()
+            })
+        }
+    }
+
+    let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
+    context
+        .animation_mut()
+        .set_button_provider(SlowFocusProvider);
+    let mut button = Button::standard("Save");
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        button.register(&mut cx);
+        button.update(ButtonInteraction::Focus, &mut cx).unwrap();
+    }
+    runtime.tick(Duration::from_millis(500.0));
+
+    let cx = ComponentViewCx::new(&runtime, &context);
+    assert_approx_eq!(
+        f32,
+        button.snapshot(&cx).unwrap().motion.focus_ring_alpha,
+        0.5
     );
 }
 
