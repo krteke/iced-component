@@ -53,10 +53,12 @@ impl SurfaceLayout {
     }
 
     pub(crate) fn resolve(self, context: &ComponentContext) -> ResolvedSurfaceLayout {
+        self.resolve_with_padding(context.theme().theme().control.surface.padding.value())
+    }
+
+    pub(crate) fn resolve_with_padding(self, default_padding: f32) -> ResolvedSurfaceLayout {
         ResolvedSurfaceLayout {
-            padding: self
-                .padding
-                .unwrap_or_else(|| context.theme().theme().control.surface.padding.value()),
+            padding: self.padding.unwrap_or(default_padding),
             width: self.width,
             height: self.height,
         }

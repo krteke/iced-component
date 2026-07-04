@@ -1,5 +1,10 @@
+use std::sync::Arc;
+
 use aura_anim::{
-    core::{interpolate::InterpolationProgress, traits::Interpolate},
+    core::{
+        interpolate::InterpolationProgress,
+        traits::{BoxAnimation, Interpolate},
+    },
     prelude::Animatable,
 };
 
@@ -15,6 +20,40 @@ pub struct SurfaceMotion {
     pub tokens: SurfaceTokens,
     /// Shadow/elevation multiplier resolved by surface treatment.
     pub elevation: f32,
+}
+
+/// Surface motion transition trigger.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SurfaceMotionTrigger {
+    /// Pointer entered the surface.
+    HoverEnter,
+    /// Pointer left the surface.
+    HoverExit,
+    /// Visual variant changed.
+    Variant,
+    /// Theme or target synchronization.
+    Sync,
+}
+
+/// Data passed to custom surface motion factories.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SurfaceMotionTransition {
+    /// Current visual value used as animation start.
+    pub from: SurfaceMotion,
+    /// Resolved target visual value.
+    pub to: SurfaceMotion,
+    /// Transition trigger.
+    pub trigger: SurfaceMotionTrigger,
+}
+
+/// A function type for building surface animations.
+pub type SurfaceAnimationBuilder =
+    Arc<dyn Fn(SurfaceMotionTransition) -> BoxAnimation<SurfaceMotion>>;
+
+/// Provides surface animations for an animation theme or variant family.
+pub trait SurfaceAnimationProvider: 'static {
+    /// Returns the animation builder for one resolved transition.
+    fn surface_animation(&self, transition: &SurfaceMotionTransition) -> SurfaceAnimationBuilder;
 }
 
 impl SurfaceMotion {

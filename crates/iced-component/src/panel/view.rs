@@ -7,15 +7,15 @@ use iced::widget::{Column, text};
 use super::Panel;
 use crate::{
     component::ComponentViewCx,
-    surface::{ResolvedSurfaceLayout, SurfaceEvent, SurfaceSnapshot, SurfaceView},
+    panel::ResolvedPanelLayout,
+    surface::{SurfaceEvent, SurfaceSnapshot, SurfaceView},
 };
 
 /// Iced view builder for [`Panel`].
 pub struct PanelView<'a, Message> {
     snapshot: SurfaceSnapshot,
-    layout: ResolvedSurfaceLayout,
+    layout: ResolvedPanelLayout,
     title: Option<&'a str>,
-    spacing: f32,
     header: Option<Element<'a, Message>>,
     body: Option<Element<'a, Message>>,
     footer: Option<Element<'a, Message>>,
@@ -43,9 +43,8 @@ impl Panel {
     {
         Ok(PanelView {
             snapshot: self.surface.snapshot(cx)?,
-            layout: self.surface.layout().resolve(cx.context()),
+            layout: self.layout.resolve(self.surface.layout(), cx.context()),
             title: self.title.as_deref(),
-            spacing: self.spacing,
             header: None,
             body: None,
             footer: None,
@@ -89,14 +88,14 @@ where
     Message: Clone + 'a,
 {
     fn from(view: PanelView<'a, Message>) -> Self {
-        let mut content = Column::new().spacing(view.spacing);
+        let mut content = Column::new().spacing(view.layout.spacing);
         let mut has_content = false;
 
         if let Some(header) = view.header {
             content = content.push(header);
             has_content = true;
         } else if let Some(title) = view.title {
-            content = content.push(text(title).size(17));
+            content = content.push(text(title).size(view.layout.title_size));
             has_content = true;
         }
 
@@ -114,7 +113,7 @@ where
             content = content.push(text(""));
         }
 
-        let surface = SurfaceView::from_parts(view.snapshot, content, view.layout);
+        let surface = SurfaceView::from_parts(view.snapshot, content, view.layout.surface);
         connect_surface(surface, view.on_event).into()
     }
 }

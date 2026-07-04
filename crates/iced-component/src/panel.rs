@@ -1,5 +1,6 @@
 //! Panel component built on top of [`crate::surface::Surface`].
 
+mod layout;
 mod view;
 
 use aura_anim::prelude::MotionError;
@@ -10,6 +11,8 @@ use crate::{
     surface::{Surface, SurfaceEvent, SurfaceLayout, SurfaceSnapshot, SurfaceStyleState},
 };
 
+pub use layout::PanelLayout;
+pub(crate) use layout::ResolvedPanelLayout;
 pub use view::PanelView;
 
 /// Raised content panel with an optional title.
@@ -17,7 +20,7 @@ pub use view::PanelView;
 pub struct Panel {
     surface: Surface,
     title: Option<String>,
-    spacing: f32,
+    layout: PanelLayout,
 }
 
 impl Panel {
@@ -25,9 +28,9 @@ impl Panel {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            surface: Surface::raised().with_padding(18.0),
+            surface: Surface::raised(),
             title: None,
-            spacing: 12.0,
+            layout: PanelLayout::default(),
         }
     }
 
@@ -57,13 +60,35 @@ impl Panel {
     /// Returns this panel with a different body spacing.
     #[must_use]
     pub const fn with_spacing(mut self, spacing: f32) -> Self {
-        self.spacing = spacing;
+        self.layout.spacing = Some(spacing);
         self
     }
 
     /// Updates this panel's body spacing.
     pub fn set_spacing(&mut self, spacing: f32) {
-        self.spacing = spacing;
+        self.layout.spacing = Some(spacing);
+    }
+
+    /// Clears this panel's explicit body spacing.
+    pub fn clear_spacing(&mut self) {
+        self.layout.spacing = None;
+    }
+
+    /// Returns this panel with a different title text size.
+    #[must_use]
+    pub const fn with_title_size(mut self, title_size: f32) -> Self {
+        self.layout.title_size = Some(title_size);
+        self
+    }
+
+    /// Updates this panel's title text size.
+    pub fn set_title_size(&mut self, title_size: f32) {
+        self.layout.title_size = Some(title_size);
+    }
+
+    /// Clears this panel's explicit title text size.
+    pub fn clear_title_size(&mut self) {
+        self.layout.title_size = None;
     }
 
     /// Returns this panel with a different backing surface.
@@ -78,9 +103,21 @@ impl Panel {
         self.surface = surface;
     }
 
+    /// Returns this panel with a different stable panel layout override set.
+    #[must_use]
+    pub const fn with_panel_layout(mut self, layout: PanelLayout) -> Self {
+        self.layout = layout;
+        self
+    }
+
+    /// Replaces this panel's stable panel layout override set.
+    pub fn set_panel_layout(&mut self, layout: PanelLayout) {
+        self.layout = layout;
+    }
+
     /// Returns this panel with a different stable surface layout.
     #[must_use]
-    pub const fn with_layout(mut self, layout: SurfaceLayout) -> Self {
+    pub fn with_layout(mut self, layout: SurfaceLayout) -> Self {
         self.surface = self.surface.with_layout(layout);
         self
     }
@@ -92,7 +129,7 @@ impl Panel {
 
     /// Returns this panel with explicit inner padding.
     #[must_use]
-    pub const fn with_padding(mut self, padding: f32) -> Self {
+    pub fn with_padding(mut self, padding: f32) -> Self {
         self.surface = self.surface.with_padding(padding);
         self
     }
@@ -182,8 +219,20 @@ impl Panel {
 
     /// Returns this panel's body spacing.
     #[must_use]
-    pub const fn spacing(&self) -> f32 {
-        self.spacing
+    pub const fn spacing(&self) -> Option<f32> {
+        self.layout.spacing()
+    }
+
+    /// Returns this panel's title text size.
+    #[must_use]
+    pub const fn title_size(&self) -> Option<f32> {
+        self.layout.title_size()
+    }
+
+    /// Returns this panel's stable panel layout override set.
+    #[must_use]
+    pub const fn panel_layout(&self) -> PanelLayout {
+        self.layout
     }
 
     /// Returns this panel's backing surface.
@@ -248,6 +297,8 @@ impl Default for Panel {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use aura_anim::prelude::*;
     use float_cmp::assert_approx_eq;
     use iced::Element;
@@ -258,8 +309,9 @@ mod tests {
         component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
         panel::Panel,
         surface::{
-            Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout, SurfaceStyleState,
-            SurfaceTreatment, SurfaceVariant,
+            Surface, SurfaceAnimationBuilder, SurfaceAnimationProvider, SurfaceEvent,
+            SurfaceInteraction, SurfaceLayout, SurfaceMotionTransition, SurfaceMotionTrigger,
+            SurfaceStyleState, SurfaceTreatment, SurfaceVariant,
         },
     };
 
@@ -280,18 +332,21 @@ mod tests {
     fn panel_accessors_and_setters_update_stable_config() {
         let mut panel = Panel::titled("Overview")
             .with_spacing(10.0)
+            .with_title_size(18.0)
             .with_padding(16.0)
             .with_width(240.0)
             .with_height(120.0);
 
         assert_eq!(panel.title(), Some("Overview"));
-        assert_approx_eq!(f32, panel.spacing(), 10.0);
+        assert_eq!(panel.spacing(), Some(10.0));
+        assert_eq!(panel.title_size(), Some(18.0));
         assert_eq!(panel.padding(), Some(16.0));
         assert_eq!(panel.width(), Some(iced::Length::Fixed(240.0)));
         assert_eq!(panel.height(), Some(iced::Length::Fixed(120.0)));
 
         panel.set_title("Details");
         panel.set_spacing(8.0);
+        panel.set_title_size(16.0);
         panel.set_layout(SurfaceLayout::new(
             Some(12.0),
             Some(iced::Length::Fixed(220.0)),
@@ -299,17 +354,22 @@ mod tests {
         ));
 
         assert_eq!(panel.title(), Some("Details"));
-        assert_approx_eq!(f32, panel.spacing(), 8.0);
+        assert_eq!(panel.spacing(), Some(8.0));
+        assert_eq!(panel.title_size(), Some(16.0));
         assert_eq!(panel.padding(), Some(12.0));
         assert_eq!(panel.width(), Some(iced::Length::Fixed(220.0)));
         assert_eq!(panel.height(), None);
 
         panel.clear_title();
+        panel.clear_spacing();
+        panel.clear_title_size();
         panel.clear_padding();
         panel.clear_width();
         panel.set_height(96.0);
 
         assert_eq!(panel.padding(), None);
+        assert_eq!(panel.spacing(), None);
+        assert_eq!(panel.title_size(), None);
         assert_eq!(panel.width(), None);
         assert_eq!(panel.height(), Some(iced::Length::Fixed(96.0)));
 
@@ -348,6 +408,44 @@ mod tests {
             snapshot.motion.tokens.bg,
             context.theme().theme().surface.raised.hover.bg,
         );
+    }
+
+    #[test]
+    fn panel_uses_context_surface_animation_provider() {
+        struct SlowVariantProvider;
+
+        impl SurfaceAnimationProvider for SlowVariantProvider {
+            fn surface_animation(
+                &self,
+                transition: &SurfaceMotionTransition,
+            ) -> SurfaceAnimationBuilder {
+                let timing = match transition.trigger {
+                    SurfaceMotionTrigger::Variant => Timing::linear(1000.0),
+                    _ => Timing::linear(100.0),
+                };
+
+                Arc::new(move |transition| {
+                    Tween::between(transition.from, transition.to, timing).boxed()
+                })
+            }
+        }
+
+        let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::adwaita();
+        context
+            .animation_mut()
+            .set_surface_provider(SlowVariantProvider);
+        let mut panel = Panel::new();
+
+        {
+            let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+            panel.register(&mut cx);
+            panel.surface_mut().set_regular(&mut cx).unwrap();
+        }
+        runtime.tick(Duration::from_millis(500.0));
+
+        let cx = ComponentViewCx::new(&runtime, &context);
+        assert_approx_eq!(f32, panel.snapshot(&cx).unwrap().motion.elevation, 0.5);
     }
 
     #[test]

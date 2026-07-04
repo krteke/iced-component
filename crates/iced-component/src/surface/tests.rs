@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use aura_anim::prelude::*;
 use float_cmp::assert_approx_eq;
 use iced::Element;
@@ -6,8 +8,9 @@ use spectrum_theme::{Color, Length as SpectrumLength, LengthUnit};
 use crate::{
     component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
     surface::{
-        Surface, SurfaceEvent, SurfaceInteraction, SurfaceLayout, SurfaceStyleState,
-        SurfaceTreatment, SurfaceVariant, surface_style,
+        Surface, SurfaceAnimationBuilder, SurfaceAnimationProvider, SurfaceEvent,
+        SurfaceInteraction, SurfaceLayout, SurfaceMotionTransition, SurfaceMotionTrigger,
+        SurfaceStyleState, SurfaceTreatment, SurfaceVariant, surface_style,
     },
 };
 
@@ -127,6 +130,77 @@ fn set_variant_updates_style_and_motion_target() {
         context.theme().theme().surface.raised.idle.bg,
     );
     assert_approx_eq!(f32, snapshot.motion.elevation, 1.0);
+}
+
+#[test]
+fn surface_uses_animation_provider_from_component_context() {
+    struct SlowVariantProvider;
+
+    impl SurfaceAnimationProvider for SlowVariantProvider {
+        fn surface_animation(
+            &self,
+            transition: &SurfaceMotionTransition,
+        ) -> SurfaceAnimationBuilder {
+            let timing = match transition.trigger {
+                SurfaceMotionTrigger::Variant => Timing::linear(1000.0),
+                _ => Timing::linear(100.0),
+            };
+
+            Arc::new(move |transition| {
+                Tween::between(transition.from, transition.to, timing).boxed()
+            })
+        }
+    }
+
+    let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
+    context
+        .animation_mut()
+        .set_surface_provider(SlowVariantProvider);
+    let mut surface = Surface::regular();
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        surface.register(&mut cx);
+        surface.set_raised(&mut cx).unwrap();
+    }
+    runtime.tick(Duration::from_millis(500.0));
+
+    let cx = ComponentViewCx::new(&runtime, &context);
+    assert_approx_eq!(f32, surface.snapshot(&cx).unwrap().motion.elevation, 0.5);
+}
+
+#[test]
+fn surface_animation_provider_can_return_spring_animation() {
+    struct SpringSurfaceProvider;
+
+    impl SurfaceAnimationProvider for SpringSurfaceProvider {
+        fn surface_animation(
+            &self,
+            _transition: &SurfaceMotionTransition,
+        ) -> SurfaceAnimationBuilder {
+            Arc::new(|transition| {
+                Spring::new(transition.from, transition.to, SpringConfig::snappy()).boxed()
+            })
+        }
+    }
+
+    let mut runtime = MotionRuntime::new();
+    let mut context = ComponentContext::adwaita();
+    context
+        .animation_mut()
+        .set_surface_provider(SpringSurfaceProvider);
+    let mut surface = Surface::regular();
+
+    {
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        surface.register(&mut cx);
+        surface.set_raised(&mut cx).unwrap();
+    }
+    runtime.tick(Duration::from_millis(16.0));
+
+    let elevation = surface.motion_value(&runtime).unwrap().unwrap().elevation;
+    assert!(elevation > 0.0);
 }
 
 #[test]

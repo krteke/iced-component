@@ -8,14 +8,17 @@ mod style;
 mod tests;
 mod view;
 
-use aura_anim::prelude::{MotionError, MotionRuntime, Timing};
+use aura_anim::prelude::{MotionError, MotionRuntime};
 use iced::Length;
 
 use crate::component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, MotionSlot};
 
 pub(crate) use layout::ResolvedSurfaceLayout;
 pub use layout::SurfaceLayout;
-pub use motion::SurfaceMotion;
+pub use motion::{
+    SurfaceAnimationBuilder, SurfaceAnimationProvider, SurfaceMotion, SurfaceMotionTransition,
+    SurfaceMotionTrigger,
+};
 use state::SurfaceState;
 pub use style::{SurfaceRole, SurfaceTreatment, SurfaceVariant};
 pub use view::{SurfaceView, surface_style};
@@ -242,8 +245,11 @@ impl Surface {
 
     /// Synchronizes this surface's current motion target with the runtime.
     pub fn sync(&mut self, cx: &mut ComponentUpdateCx<'_>) -> Result<bool, MotionError> {
-        self.motion
-            .tween_to_or_finish(self.motion_from_ctx(cx.context()), interaction_timing(), cx)
+        if !self.motion.is_registered() {
+            return Ok(false);
+        }
+
+        self.animate_to_current(SurfaceMotionTrigger::Sync, cx)
     }
 
     /// Applies a surface interaction and transitions motion when registered.
@@ -255,7 +261,14 @@ impl Surface {
         let previous = self.state;
         self.state.apply(interaction);
 
-        self.animate_from_state(previous, cx)
+        self.animate_from_state(
+            previous,
+            match interaction {
+                SurfaceInteraction::HoverEnter => SurfaceMotionTrigger::HoverEnter,
+                SurfaceInteraction::HoverExit => SurfaceMotionTrigger::HoverExit,
+            },
+            cx,
+        )
     }
 
     /// Sets whether the surface is hovered and updates its motion target.
@@ -283,7 +296,7 @@ impl Surface {
         let previous = self.variant;
         self.variant = variant;
 
-        self.animate_from_variant(previous, cx)
+        self.animate_from_variant(previous, SurfaceMotionTrigger::Variant, cx)
     }
 
     /// Sets this surface as an app/page background.
@@ -431,6 +444,7 @@ impl Surface {
     fn animate_from_state(
         &mut self,
         previous: SurfaceState,
+        trigger: SurfaceMotionTrigger,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         if previous == self.state && !self.motion.is_registered() {
@@ -444,13 +458,13 @@ impl Surface {
             .unwrap_or_else(|| self.motion_from_state(cx.context(), previous));
         let target = self.motion_from_ctx(cx.context());
 
-        self.motion
-            .tween_from_to_or_finish(initial, target, interaction_timing(), cx)
+        self.play_motion(initial, target, trigger, cx)
     }
 
     fn animate_from_variant(
         &mut self,
         previous: SurfaceVariant,
+        trigger: SurfaceMotionTrigger,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         if previous == self.variant && !self.motion.is_registered() {
@@ -464,11 +478,38 @@ impl Surface {
             .unwrap_or_else(|| self.motion_from_variant(cx.context(), previous));
         let target = self.motion_from_ctx(cx.context());
 
-        self.motion
-            .tween_from_to_or_finish(initial, target, interaction_timing(), cx)
+        self.play_motion(initial, target, trigger, cx)
     }
-}
 
-fn interaction_timing() -> Timing {
-    Timing::ease_out(200.0)
+    fn animate_to_current(
+        &mut self,
+        trigger: SurfaceMotionTrigger,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        let initial = self
+            .motion
+            .value_if_current(cx.runtime, cx.context().theme_revision())?
+            .copied()
+            .unwrap_or_else(|| self.motion_from_ctx(cx.context()));
+        let target = self.motion_from_ctx(cx.context());
+
+        self.play_motion(initial, target, trigger, cx)
+    }
+
+    fn play_motion(
+        &mut self,
+        initial: SurfaceMotion,
+        target: SurfaceMotion,
+        trigger: SurfaceMotionTrigger,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError> {
+        let transition = SurfaceMotionTransition {
+            from: initial,
+            to: target,
+            trigger,
+        };
+        let playback = cx.context().animation().surface().build(&transition);
+
+        self.motion.play_from_or_finish(initial, playback, cx)
+    }
 }

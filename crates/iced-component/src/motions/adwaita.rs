@@ -6,9 +6,15 @@ use aura_anim::{
 };
 use std::sync::Arc;
 
-use crate::button::{
-    ButtonAnimationBuilder, ButtonAnimationProvider, ButtonMotion, ButtonMotionTransition,
-    ButtonMotionTrigger,
+use crate::{
+    button::{
+        ButtonAnimationBuilder, ButtonAnimationProvider, ButtonMotion, ButtonMotionTransition,
+        ButtonMotionTrigger,
+    },
+    surface::{
+        SurfaceAnimationBuilder, SurfaceAnimationProvider, SurfaceMotion, SurfaceMotionTransition,
+        SurfaceMotionTrigger,
+    },
 };
 
 /// Default Adwaita-like button animation provider.
@@ -31,5 +37,25 @@ impl ButtonAnimationProvider for AdwaitaButtonAnimationProvider {
 }
 
 fn tween(ms: f32) -> impl Fn(ButtonMotionTransition) -> BoxAnimation<ButtonMotion> + 'static {
+    move |transition| Tween::between(transition.from, transition.to, Timing::ease_out(ms)).boxed()
+}
+
+/// Default Adwaita-like surface animation provider.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AdwaitaSurfaceAnimationProvider;
+
+impl SurfaceAnimationProvider for AdwaitaSurfaceAnimationProvider {
+    fn surface_animation(&self, transition: &SurfaceMotionTransition) -> SurfaceAnimationBuilder {
+        Arc::new(surface_tween(match transition.trigger {
+            SurfaceMotionTrigger::HoverEnter => 160.0,
+            SurfaceMotionTrigger::HoverExit => 180.0,
+            SurfaceMotionTrigger::Variant | SurfaceMotionTrigger::Sync => 200.0,
+        }))
+    }
+}
+
+fn surface_tween(
+    ms: f32,
+) -> impl Fn(SurfaceMotionTransition) -> BoxAnimation<SurfaceMotion> + 'static {
     move |transition| Tween::between(transition.from, transition.to, Timing::ease_out(ms)).boxed()
 }

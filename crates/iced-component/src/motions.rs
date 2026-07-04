@@ -4,12 +4,15 @@ use std::{fmt, sync::Arc};
 
 use aura_anim::core::traits::BoxAnimation;
 
-use crate::button::{ButtonAnimationProvider, ButtonMotion, ButtonMotionTransition};
+use crate::{
+    button::{ButtonAnimationProvider, ButtonMotion, ButtonMotionTransition},
+    surface::{SurfaceAnimationProvider, SurfaceMotion, SurfaceMotionTransition},
+};
 
 pub mod adwaita;
 
-/// Canonical built-in Adwaita-like button animation provider.
-pub use adwaita::AdwaitaButtonAnimationProvider;
+/// Canonical built-in Adwaita-like animation providers.
+pub use adwaita::{AdwaitaButtonAnimationProvider, AdwaitaSurfaceAnimationProvider};
 
 /// Shared animation providers used by component update paths.
 ///
@@ -19,21 +22,26 @@ pub use adwaita::AdwaitaButtonAnimationProvider;
 #[derive(Clone)]
 pub struct AnimationContext {
     button: ButtonAnimationProviderSlot,
+    surface: SurfaceAnimationProviderSlot,
 }
 
 impl AnimationContext {
     /// Creates an animation context from explicit component providers.
     #[must_use]
-    pub const fn new(button: ButtonAnimationProviderSlot) -> Self {
-        Self { button }
+    pub const fn new(
+        button: ButtonAnimationProviderSlot,
+        surface: SurfaceAnimationProviderSlot,
+    ) -> Self {
+        Self { button, surface }
     }
 
     /// Creates the default Adwaita-like animation context.
     #[must_use]
     pub fn adwaita() -> Self {
-        Self::new(ButtonAnimationProviderSlot::new(
-            AdwaitaButtonAnimationProvider,
-        ))
+        Self::new(
+            ButtonAnimationProviderSlot::new(AdwaitaButtonAnimationProvider),
+            SurfaceAnimationProviderSlot::new(AdwaitaSurfaceAnimationProvider),
+        )
     }
 
     /// Returns the button animation provider slot.
@@ -47,6 +55,17 @@ impl AnimationContext {
         &mut self.button
     }
 
+    /// Returns the surface animation provider slot.
+    #[must_use]
+    pub const fn surface(&self) -> &SurfaceAnimationProviderSlot {
+        &self.surface
+    }
+
+    /// Returns the mutable surface animation provider slot.
+    pub fn surface_mut(&mut self) -> &mut SurfaceAnimationProviderSlot {
+        &mut self.surface
+    }
+
     /// Returns this context with a different button animation provider.
     #[must_use]
     pub fn with_button_provider(mut self, provider: impl ButtonAnimationProvider) -> Self {
@@ -57,6 +76,18 @@ impl AnimationContext {
     /// Replaces the button animation provider.
     pub fn set_button_provider(&mut self, provider: impl ButtonAnimationProvider) {
         self.button = ButtonAnimationProviderSlot::new(provider);
+    }
+
+    /// Returns this context with a different surface animation provider.
+    #[must_use]
+    pub fn with_surface_provider(mut self, provider: impl SurfaceAnimationProvider) -> Self {
+        self.set_surface_provider(provider);
+        self
+    }
+
+    /// Replaces the surface animation provider.
+    pub fn set_surface_provider(&mut self, provider: impl SurfaceAnimationProvider) {
+        self.surface = SurfaceAnimationProviderSlot::new(provider);
     }
 }
 
@@ -97,5 +128,39 @@ impl ButtonAnimationProviderSlot {
 impl fmt::Debug for ButtonAnimationProviderSlot {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("ButtonAnimationProviderSlot { .. }")
+    }
+}
+
+/// Shared slot for one surface animation provider.
+#[derive(Clone)]
+pub struct SurfaceAnimationProviderSlot {
+    provider: Arc<dyn SurfaceAnimationProvider>,
+}
+
+impl SurfaceAnimationProviderSlot {
+    /// Creates a provider slot from a concrete provider.
+    #[must_use]
+    pub fn new(provider: impl SurfaceAnimationProvider) -> Self {
+        Self {
+            provider: Arc::new(provider),
+        }
+    }
+
+    /// Returns the stored surface animation provider.
+    #[must_use]
+    pub fn provider(&self) -> &dyn SurfaceAnimationProvider {
+        self.provider.as_ref()
+    }
+
+    /// Builds one surface animation for the resolved transition.
+    #[must_use]
+    pub fn build(&self, transition: &SurfaceMotionTransition) -> BoxAnimation<SurfaceMotion> {
+        (self.provider().surface_animation(transition))(*transition)
+    }
+}
+
+impl fmt::Debug for SurfaceAnimationProviderSlot {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SurfaceAnimationProviderSlot { .. }")
     }
 }

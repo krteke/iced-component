@@ -49,6 +49,12 @@ define_theme_tokens! {
             radius: Radius,
             shadow: ShadowLayer,
         }
+        #[derive(Copy, Debug, PartialEq)]
+        component PanelTokens {
+            padding: Length,
+            spacing: Length,
+            title_size: Length,
+        }
         surface {
             states background: SurfaceTokens {
                 idle,
@@ -62,6 +68,9 @@ define_theme_tokens! {
                 idle,
                 hover extends idle,
             }
+        }
+        panel {
+            regular: PanelTokens,
         }
         button {
             shape {
@@ -113,6 +122,8 @@ pub type SurfaceRegularState = ThemePackRegularState;
 pub type SurfaceRaisedTokens = ThemePackRaisedStates;
 /// Raised surface state enum.
 pub type SurfaceRaisedState = ThemePackRaisedState;
+/// Panel layout tokens.
+pub type PanelComponentTokens = PanelTokens;
 /// Button token component generated for [`ThemePack`].
 pub type ButtonComponentTokens = ButtonTokens;
 /// Standard filled button token group.
@@ -246,6 +257,9 @@ mod tests {
             theme.button.standard_filled.disabled.fg
         );
         assert_approx_eq!(f32, theme.control.icon_button.size.value(), 40.0);
+        assert_approx_eq!(f32, theme.panel.regular.padding.value(), 18.0);
+        assert_approx_eq!(f32, theme.panel.regular.spacing.value(), 12.0);
+        assert_approx_eq!(f32, theme.panel.regular.title_size.value(), 17.0);
     }
 
     fn assert_no_shadow(shadow: ShadowLayer) {

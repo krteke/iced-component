@@ -24,6 +24,11 @@ padding_y = "8px"
 size = "40px"
 icon_size = "16px"
 
+[panel.regular]
+padding = "18px"
+spacing = "12px"
+title_size = "17px"
+
 [surface.background.idle]
 bg = "{app.bg}"
 fg = "{app.fg}"

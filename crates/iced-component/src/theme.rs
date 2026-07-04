@@ -14,9 +14,9 @@ pub use pack::{
     ButtonStandardFilledTokens, ButtonStandardFlatState, ButtonStandardFlatTokens,
     ButtonStandardRaisedState, ButtonStandardRaisedTokens, ButtonSuggestedFilledState,
     ButtonSuggestedFilledTokens, ButtonSuggestedFlatState, ButtonSuggestedFlatTokens,
-    ButtonSuggestedRaisedState, ButtonSuggestedRaisedTokens, ControlTokens, SurfaceBackgroundState,
-    SurfaceBackgroundTokens, SurfaceRaisedState, SurfaceRaisedTokens, SurfaceRegularState,
-    SurfaceRegularTokens, SurfaceTokens, ThemePack,
+    ButtonSuggestedRaisedState, ButtonSuggestedRaisedTokens, ControlTokens, PanelComponentTokens,
+    SurfaceBackgroundState, SurfaceBackgroundTokens, SurfaceRaisedState, SurfaceRaisedTokens,
+    SurfaceRegularState, SurfaceRegularTokens, SurfaceTokens, ThemePack,
 };
 pub use spectrum_theme::{
     Color, ColorParseError, FontStyle, FontStyleParseError, FontWeight, FontWeightParseError,
