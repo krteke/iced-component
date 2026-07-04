@@ -11,11 +11,28 @@ use crate::{
         ButtonAnimationBuilder, ButtonAnimationProvider, ButtonMotion, ButtonMotionTransition,
         ButtonMotionTrigger,
     },
+    motions::{
+        AnimationProviders, ButtonAnimationProviderSlot, MotionProviderSet,
+        SurfaceAnimationProviderSlot,
+    },
     surface::{
         SurfaceAnimationBuilder, SurfaceAnimationProvider, SurfaceMotion, SurfaceMotionTransition,
         SurfaceMotionTrigger,
     },
 };
+
+/// Complete built-in Adwaita-like animation provider set.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AdwaitaMotionProviders;
+
+impl MotionProviderSet for AdwaitaMotionProviders {
+    fn into_animation_providers(self) -> AnimationProviders {
+        AnimationProviders::new(
+            ButtonAnimationProviderSlot::new(AdwaitaButtonAnimationProvider),
+            SurfaceAnimationProviderSlot::new(AdwaitaSurfaceAnimationProvider),
+        )
+    }
+}
 
 /// Default Adwaita-like button animation provider.
 #[derive(Clone, Copy, Debug, Default)]
