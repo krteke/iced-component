@@ -48,6 +48,7 @@ mod tests {
     use crate::{
         button::Button,
         component::{ComponentContext, ComponentUpdateCx, ComponentViewCx},
+        spinner::Spinner,
         surface::Surface,
     };
     use spectrum_theme::Color;
@@ -56,16 +57,17 @@ mod tests {
     fn register_components_registers_each_component_once() {
         let mut runtime = MotionRuntime::new();
         let mut button = Button::suggested("Save");
+        let mut spinner = Spinner::new();
         let mut surface = Surface::raised();
 
         let mut context = ComponentContext::default();
         {
             let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
-            crate::register_components!(cx, [button, surface]);
-            crate::register_components!(cx, [button, surface]);
+            crate::register_components!(cx, [button, spinner, surface]);
+            crate::register_components!(cx, [button, spinner, surface]);
         }
 
-        assert_eq!(runtime.motion_count(), 2);
+        assert_eq!(runtime.motion_count(), 3);
     }
 
     #[test]

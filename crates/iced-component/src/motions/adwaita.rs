@@ -2,7 +2,7 @@
 
 use aura_anim::{
     core::traits::BoxAnimation,
-    prelude::{AnimationExt, Timing, Tween},
+    prelude::{AnimationExt, IterationCount, Timing, Tween},
 };
 use std::sync::Arc;
 
@@ -13,7 +13,11 @@ use crate::{
     },
     motions::{
         AnimationProviders, ButtonAnimationProviderSlot, MotionProviderSet,
-        SurfaceAnimationProviderSlot,
+        SpinnerAnimationProviderSlot, SurfaceAnimationProviderSlot,
+    },
+    spinner::{
+        SpinnerAnimationBuilder, SpinnerAnimationProvider, SpinnerMotion, SpinnerMotionTransition,
+        SpinnerMotionTrigger,
     },
     surface::{
         SurfaceAnimationBuilder, SurfaceAnimationProvider, SurfaceMotion, SurfaceMotionTransition,
@@ -29,6 +33,7 @@ impl MotionProviderSet for AdwaitaMotionProviders {
     fn into_animation_providers(self) -> AnimationProviders {
         AnimationProviders::new(
             ButtonAnimationProviderSlot::new(AdwaitaButtonAnimationProvider),
+            SpinnerAnimationProviderSlot::new(AdwaitaSpinnerAnimationProvider),
             SurfaceAnimationProviderSlot::new(AdwaitaSurfaceAnimationProvider),
         )
     }
@@ -55,6 +60,27 @@ impl ButtonAnimationProvider for AdwaitaButtonAnimationProvider {
 
 fn tween(ms: f32) -> impl Fn(ButtonMotionTransition) -> BoxAnimation<ButtonMotion> + 'static {
     move |transition| Tween::between(transition.from, transition.to, Timing::ease_out(ms)).boxed()
+}
+
+/// Default Adwaita-like spinner animation provider.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AdwaitaSpinnerAnimationProvider;
+
+impl SpinnerAnimationProvider for AdwaitaSpinnerAnimationProvider {
+    fn spinner_animation(&self, transition: &SpinnerMotionTransition) -> SpinnerAnimationBuilder {
+        Arc::new(spinner_tween(match transition.trigger {
+            SpinnerMotionTrigger::Start | SpinnerMotionTrigger::Sync => {
+                Timing::linear(1000.0).with_iterations(IterationCount::INFINITE)
+            }
+            SpinnerMotionTrigger::Stop => Timing::linear(1.0),
+        }))
+    }
+}
+
+fn spinner_tween(
+    timing: Timing,
+) -> impl Fn(SpinnerMotionTransition) -> BoxAnimation<SpinnerMotion> + 'static {
+    move |transition| Tween::between(transition.from, transition.to, timing).boxed()
 }
 
 /// Default Adwaita-like surface animation provider.

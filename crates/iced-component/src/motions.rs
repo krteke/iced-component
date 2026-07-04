@@ -6,6 +6,7 @@ use aura_anim::core::traits::BoxAnimation;
 
 use crate::{
     button::{ButtonAnimationProvider, ButtonMotion, ButtonMotionTransition},
+    spinner::{SpinnerAnimationProvider, SpinnerMotion, SpinnerMotionTransition},
     surface::{SurfaceAnimationProvider, SurfaceMotion, SurfaceMotionTransition},
 };
 
@@ -13,7 +14,8 @@ pub mod adwaita;
 
 /// Canonical built-in Adwaita-like animation providers.
 pub use adwaita::{
-    AdwaitaButtonAnimationProvider, AdwaitaMotionProviders, AdwaitaSurfaceAnimationProvider,
+    AdwaitaButtonAnimationProvider, AdwaitaMotionProviders, AdwaitaSpinnerAnimationProvider,
+    AdwaitaSurfaceAnimationProvider,
 };
 
 /// A complete set of component animation providers.
@@ -73,6 +75,17 @@ impl AnimationContext {
         self.providers.button_mut()
     }
 
+    /// Returns the spinner animation provider slot.
+    #[must_use]
+    pub const fn spinner(&self) -> &SpinnerAnimationProviderSlot {
+        self.providers.spinner()
+    }
+
+    /// Returns the mutable spinner animation provider slot.
+    pub fn spinner_mut(&mut self) -> &mut SpinnerAnimationProviderSlot {
+        self.providers.spinner_mut()
+    }
+
     /// Returns the surface animation provider slot.
     #[must_use]
     pub const fn surface(&self) -> &SurfaceAnimationProviderSlot {
@@ -96,6 +109,18 @@ impl AnimationContext {
         self.providers.set_button_provider(provider);
     }
 
+    /// Returns this context with a different spinner animation provider.
+    #[must_use]
+    pub fn with_spinner_provider(mut self, provider: impl SpinnerAnimationProvider) -> Self {
+        self.set_spinner_provider(provider);
+        self
+    }
+
+    /// Replaces the spinner animation provider.
+    pub fn set_spinner_provider(&mut self, provider: impl SpinnerAnimationProvider) {
+        self.providers.set_spinner_provider(provider);
+    }
+
     /// Returns this context with a different surface animation provider.
     #[must_use]
     pub fn with_surface_provider(mut self, provider: impl SurfaceAnimationProvider) -> Self {
@@ -113,6 +138,7 @@ impl AnimationContext {
 #[derive(Clone)]
 pub struct AnimationProviders {
     button: ButtonAnimationProviderSlot,
+    spinner: SpinnerAnimationProviderSlot,
     surface: SurfaceAnimationProviderSlot,
 }
 
@@ -121,9 +147,14 @@ impl AnimationProviders {
     #[must_use]
     pub const fn new(
         button: ButtonAnimationProviderSlot,
+        spinner: SpinnerAnimationProviderSlot,
         surface: SurfaceAnimationProviderSlot,
     ) -> Self {
-        Self { button, surface }
+        Self {
+            button,
+            spinner,
+            surface,
+        }
     }
 
     /// Creates the default Adwaita-like provider group.
@@ -141,6 +172,17 @@ impl AnimationProviders {
     /// Returns the mutable button animation provider slot.
     pub fn button_mut(&mut self) -> &mut ButtonAnimationProviderSlot {
         &mut self.button
+    }
+
+    /// Returns the spinner animation provider slot.
+    #[must_use]
+    pub const fn spinner(&self) -> &SpinnerAnimationProviderSlot {
+        &self.spinner
+    }
+
+    /// Returns the mutable spinner animation provider slot.
+    pub fn spinner_mut(&mut self) -> &mut SpinnerAnimationProviderSlot {
+        &mut self.spinner
     }
 
     /// Returns the surface animation provider slot.
@@ -164,6 +206,18 @@ impl AnimationProviders {
     /// Replaces the button animation provider.
     pub fn set_button_provider(&mut self, provider: impl ButtonAnimationProvider) {
         self.button = ButtonAnimationProviderSlot::new(provider);
+    }
+
+    /// Returns this provider group with a different spinner animation provider.
+    #[must_use]
+    pub fn with_spinner_provider(mut self, provider: impl SpinnerAnimationProvider) -> Self {
+        self.set_spinner_provider(provider);
+        self
+    }
+
+    /// Replaces the spinner animation provider.
+    pub fn set_spinner_provider(&mut self, provider: impl SpinnerAnimationProvider) {
+        self.spinner = SpinnerAnimationProviderSlot::new(provider);
     }
 
     /// Returns this provider group with a different surface animation provider.
@@ -225,6 +279,40 @@ impl fmt::Debug for ButtonAnimationProviderSlot {
     }
 }
 
+/// Shared slot for one spinner animation provider.
+#[derive(Clone)]
+pub struct SpinnerAnimationProviderSlot {
+    provider: Arc<dyn SpinnerAnimationProvider>,
+}
+
+impl SpinnerAnimationProviderSlot {
+    /// Creates a provider slot from a concrete provider.
+    #[must_use]
+    pub fn new(provider: impl SpinnerAnimationProvider) -> Self {
+        Self {
+            provider: Arc::new(provider),
+        }
+    }
+
+    /// Returns the stored spinner animation provider.
+    #[must_use]
+    pub fn provider(&self) -> &dyn SpinnerAnimationProvider {
+        self.provider.as_ref()
+    }
+
+    /// Builds one spinner animation for the resolved transition.
+    #[must_use]
+    pub fn build(&self, transition: &SpinnerMotionTransition) -> BoxAnimation<SpinnerMotion> {
+        (self.provider().spinner_animation(transition))(*transition)
+    }
+}
+
+impl fmt::Debug for SpinnerAnimationProviderSlot {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SpinnerAnimationProviderSlot { .. }")
+    }
+}
+
 /// Shared slot for one surface animation provider.
 #[derive(Clone)]
 pub struct SurfaceAnimationProviderSlot {
@@ -264,6 +352,7 @@ mod tests {
     use crate::{
         button::{ButtonMotion, ButtonMotionTransition, ButtonMotionTrigger},
         motions::{AdwaitaMotionProviders, AnimationContext, AnimationProviders},
+        spinner::{SpinnerMotion, SpinnerMotionTransition, SpinnerMotionTrigger},
         surface::{SurfaceMotion, SurfaceMotionTransition, SurfaceMotionTrigger},
         theme::ThemePack,
     };
@@ -282,11 +371,17 @@ mod tests {
             tokens: theme.surface.raised.idle,
             elevation: 1.0,
         };
+        let spinner_motion = SpinnerMotion::default();
 
         let _button_animation = context.button().build(&ButtonMotionTransition {
             from: button_motion,
             to: button_motion,
             trigger: ButtonMotionTrigger::HoverEnter,
+        });
+        let _spinner_animation = context.spinner().build(&SpinnerMotionTransition {
+            from: spinner_motion,
+            to: SpinnerMotion { rotation: 360.0 },
+            trigger: SpinnerMotionTrigger::Start,
         });
         let _surface_animation = context.surface().build(&SurfaceMotionTransition {
             from: surface_motion,

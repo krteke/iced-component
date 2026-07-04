@@ -162,6 +162,25 @@ impl<T: Animatable> MotionSlot<T> {
         Ok(true)
     }
 
+    /// Registers from `initial` when needed, then plays an arbitrary animation.
+    pub fn play_from<A>(
+        &mut self,
+        initial: T,
+        playback: A,
+        cx: &mut ComponentUpdateCx<'_>,
+    ) -> Result<bool, MotionError>
+    where
+        A: Animation<T>,
+    {
+        let theme_revision = cx.context().theme_revision();
+        let motion =
+            self.register_fresh_if_stale(cx.runtime, initial, theme_revision, Timing::default())?;
+
+        motion.play(playback, cx.runtime)?;
+        self.theme_revision = Some(theme_revision);
+        Ok(true)
+    }
+
     /// Returns the registered motion handle, if registration happened.
     #[must_use]
     pub fn motion(&self) -> Option<Motion<T>> {

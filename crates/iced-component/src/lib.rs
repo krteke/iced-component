@@ -5,6 +5,7 @@ pub mod component;
 pub mod motion;
 pub mod motions;
 pub mod panel;
+pub mod spinner;
 pub mod surface;
 pub mod theme;
 

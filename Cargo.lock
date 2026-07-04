@@ -1317,8 +1317,10 @@ name = "iced-component"
 version = "0.1.0"
 dependencies = [
  "aura-anim",
+ "bytemuck",
  "float-cmp 0.10.0",
  "iced",
+ "iced_wgpu",
  "spectrum-theme",
  "thiserror 2.0.18",
  "toml",

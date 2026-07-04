@@ -55,6 +55,13 @@ define_theme_tokens! {
             spacing: Length,
             title_size: Length,
         }
+        #[derive(Copy, Debug, PartialEq)]
+        component SpinnerTokens {
+            fg: Color,
+            track: Color,
+            size: Length,
+            stroke_width: Length,
+        }
         surface {
             states background: SurfaceTokens {
                 idle,
@@ -71,6 +78,9 @@ define_theme_tokens! {
         }
         panel {
             regular: PanelTokens,
+        }
+        spinner {
+            regular: SpinnerTokens,
         }
         button {
             shape {
@@ -124,6 +134,8 @@ pub type SurfaceRaisedTokens = ThemePackRaisedStates;
 pub type SurfaceRaisedState = ThemePackRaisedState;
 /// Panel layout tokens.
 pub type PanelComponentTokens = PanelTokens;
+/// Spinner visual tokens.
+pub type SpinnerComponentTokens = SpinnerTokens;
 /// Button token component generated for [`ThemePack`].
 pub type ButtonComponentTokens = ButtonTokens;
 /// Standard filled button token group.
@@ -260,6 +272,16 @@ mod tests {
         assert_approx_eq!(f32, theme.panel.regular.padding.value(), 18.0);
         assert_approx_eq!(f32, theme.panel.regular.spacing.value(), 12.0);
         assert_approx_eq!(f32, theme.panel.regular.title_size.value(), 17.0);
+        assert_eq!(
+            theme.spinner.regular.fg,
+            "#8c8c90".parse::<Color>().unwrap()
+        );
+        assert_eq!(
+            theme.spinner.regular.track,
+            "#eaeaeb".parse::<Color>().unwrap()
+        );
+        assert_approx_eq!(f32, theme.spinner.regular.size.value(), 24.0);
+        assert_approx_eq!(f32, theme.spinner.regular.stroke_width.value(), 2.5);
     }
 
     fn assert_no_shadow(shadow: ShadowLayer) {

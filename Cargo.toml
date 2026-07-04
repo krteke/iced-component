@@ -14,7 +14,8 @@ repository = "https://github.com/krteke/arua-iced-component"
 spectrum-theme = { git = "https://github.com/krteke/void-spectrum" }
 aura-anim = { git = "https://github.com/krteke/aura-anim-iced", default-features = false }
 iced = { version = "0.14.0", features = ["tokio"] }
-
+iced_wgpu = "0.14.0"
+bytemuck = "1.25.0"
 toml = "1.1.2"
 thiserror = "2.0.18"
 
