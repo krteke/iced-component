@@ -1,0 +1,18 @@
+[package]
+name = "iced-adwaita"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bytemuck = { workspace = true, features = ["derive"] }
+iced = { workspace = true, features = ["wgpu"] }
+iced_wgpu.workspace = true
+spectrum-theme = { workspace = true, features = ["macros", "toml", "iced"] }
+thiserror.workspace = true
+
+[lints]
+workspace = true

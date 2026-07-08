@@ -1,5 +1,5 @@
 [package]
-name = "iced-component"
+name = "iced-material"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

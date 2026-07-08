@@ -1,5 +1,5 @@
 [package]
-name = "iced-component"
+name = "iced-component-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-iced-component-core.workspace = true
+aura-anim = { workspace = true, features = ["oklaba"] }
 
 [lints]
 workspace = true
