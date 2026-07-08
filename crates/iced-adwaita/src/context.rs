@@ -5,27 +5,84 @@ use iced_component_core::{
 
 use crate::theme::ThemePack;
 
+/// The theme mode for the Adwaita component context.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ThemeMode {
+    /// The dark theme mode.
+    Dark,
+    /// The light theme mode.
+    Light,
+}
+
+/// The theme for the Adwaita component context.
+#[derive(Clone)]
+pub struct Theme {
+    pack: ThemePack,
+    mode: ThemeMode,
+}
+
+impl Theme {
+    /// Creates a new theme from the given theme mode.
+    #[must_use]
+    pub fn new(mode: ThemeMode) -> Self {
+        Self {
+            pack: ThemePack::from_mode(mode),
+            mode,
+        }
+    }
+
+    /// Creates a new dark theme.
+    #[must_use]
+    pub fn dark() -> Self {
+        Self::new(ThemeMode::Dark)
+    }
+
+    /// Creates a new light theme.
+    #[must_use]
+    pub fn light() -> Self {
+        Self::new(ThemeMode::Light)
+    }
+
+    /// Returns a reference to the theme pack.
+    #[must_use]
+    pub const fn pack(&self) -> &ThemePack {
+        &self.pack
+    }
+
+    /// Returns the theme mode.
+    #[must_use]
+    pub const fn mode(&self) -> ThemeMode {
+        self.mode
+    }
+}
+
 /// Shared Adwaita component inputs.
 #[derive(Clone)]
 pub struct Context {
     core: ComponentContext,
-    theme: ThemePack,
+    theme: Theme,
 }
 
 impl Context {
     /// Creates an Adwaita component context from an explicit theme pack.
     #[must_use]
-    pub fn new(theme: ThemePack) -> Self {
+    pub fn new(mode: ThemeMode) -> Self {
         Self {
             core: ComponentContext::new(),
-            theme,
+            theme: Theme::new(mode),
         }
     }
 
     /// Creates the embedded Adwaita light context.
     #[must_use]
     pub fn light() -> Self {
-        Self::new(ThemePack::light())
+        Self::new(ThemeMode::Light)
+    }
+
+    /// Creates the embedded Adwaita dark context.
+    #[must_use]
+    pub fn dark() -> Self {
+        Self::new(ThemeMode::Dark)
     }
 
     /// Returns the underlying core component context.
@@ -36,7 +93,7 @@ impl Context {
 
     /// Returns the current Adwaita theme pack.
     #[must_use]
-    pub const fn theme(&self) -> &ThemePack {
+    pub const fn theme(&self) -> &Theme {
         &self.theme
     }
 
@@ -84,19 +141,28 @@ impl<'a> UpdateCx<'a> {
 
     /// Returns the current Adwaita theme pack.
     #[must_use]
-    pub const fn theme(&self) -> &ThemePack {
+    pub const fn theme(&self) -> &Theme {
         self.context.theme()
     }
 
+    /// Toggles the theme mode between dark and light.
+    pub fn toggle_theme(&mut self) {
+        self.context.theme = match self.context.theme.mode {
+            ThemeMode::Light => Theme::new(ThemeMode::Dark),
+            ThemeMode::Dark => Theme::new(ThemeMode::Light),
+        };
+        self.context.core.bump_style_revision();
+    }
+
     /// Replaces the Adwaita theme pack and invalidates style-dependent motion.
-    pub fn set_theme_pack(&mut self, theme: ThemePack) {
+    pub fn set_theme(&mut self, theme: Theme) {
         self.context.theme = theme;
         self.context.core.bump_style_revision();
     }
 
     /// Applies local theme changes and invalidates style-dependent motion.
     pub fn patch_theme(&mut self, patch: impl FnOnce(&mut ThemePack)) {
-        patch(&mut self.context.theme);
+        patch(&mut self.context.theme.pack);
         self.context.core.bump_style_revision();
     }
 
@@ -150,8 +216,14 @@ impl<'a> ViewCx<'a> {
 
     /// Returns the current Adwaita theme pack.
     #[must_use]
-    pub const fn theme(&self) -> &ThemePack {
-        self.context.theme()
+    pub const fn theme(&self) -> &Theme {
+        &self.context.theme
+    }
+
+    /// Returns the current theme mode.
+    #[must_use]
+    pub const fn theme_mode(&self) -> ThemeMode {
+        self.context.theme.mode()
     }
 
     /// Returns the current style revision.
@@ -172,7 +244,9 @@ mod tests {
     use iced_component_core::anim::MotionRuntime;
     use spectrum_theme::Color;
 
-    use super::{Context, ThemePack, UpdateCx, ViewCx};
+    use crate::context::Theme;
+
+    use super::{Context, UpdateCx, ViewCx};
 
     #[test]
     fn replacing_theme_bumps_style_revision() {
@@ -180,7 +254,7 @@ mod tests {
         let mut context = Context::light();
         let revision = context.style_revision();
 
-        UpdateCx::new(&mut runtime, &mut context).set_theme_pack(ThemePack::light());
+        UpdateCx::new(&mut runtime, &mut context).set_theme(Theme::dark());
 
         assert_ne!(context.style_revision(), revision);
     }
@@ -195,7 +269,7 @@ mod tests {
             theme.spinner.color = Color::new(1, 2, 3);
         });
 
-        assert_eq!(context.theme().spinner.color, Color::new(1, 2, 3));
+        assert_eq!(context.theme().pack.spinner.color, Color::new(1, 2, 3));
         assert_ne!(context.style_revision(), revision);
     }
 

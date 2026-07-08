@@ -8,6 +8,8 @@ pub mod tokens;
 
 /// Embedded Adwaita light theme.
 pub const ADWAITA_LIGHT_TOML: &str = include_str!("../themes/adwaita-light.toml");
+/// Embedded Adwaita dark theme.
+pub const ADWAITA_DARK_TOML: &str = include_str!("../themes/adwaita-dark.toml");
 
 pub use error::ThemeLoadError;
 pub use tokens::ThemePack;

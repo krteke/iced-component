@@ -1,128 +1,70 @@
-use spectrum_theme::{
-    Color, Length, Radius, ShadowLayer, config::TomlThemeSource, define_theme_tokens,
-};
+use spectrum_theme::{Color, Length, config::TomlThemeSource, define_theme_tokens};
 use std::sync::OnceLock;
 
-use super::{ADWAITA_LIGHT_TOML, ThemeLoadError};
+use crate::context::ThemeMode;
+
+use super::{ADWAITA_DARK_TOML, ADWAITA_LIGHT_TOML, ThemeLoadError};
 
 define_theme_tokens! {
     #[derive(Clone)]
     pub struct ThemePack {
         app {
-            bg: Color,
-            fg: Color,
-            fg_muted: Color,
-        }
-        control {
-            border { width: Length }
-            surface {
-                padding: Length,
+            window {
+                bg: Color,
+                fg: Color,
             }
-            button {
-                padding_x: Length,
-                padding_y: Length,
+            view {
+                bg: Color,
+                fg: Color,
             }
-            icon_button {
-                size: Length,
-                icon_size: Length,
-            }
-        }
-        #[derive(Copy, Debug, PartialEq)]
-        component ButtonTokens {
-            bg: Color,
-            fg: Color,
-            border: Color,
-            border_width: Length,
-            radius: Radius,
-            focus_ring: Color,
-            shadow: ShadowLayer,
-        }
-        #[derive(Copy, Debug, PartialEq)]
-        component SurfaceTokens {
-            bg: Color,
-            fg: Color,
-            border: Color,
-            border_width: Length,
-            radius: Radius,
-            shadow: ShadowLayer,
-        }
-        #[derive(Copy, Debug, PartialEq)]
-        component PanelTokens {
-            padding: Length,
-            spacing: Length,
-            title_size: Length,
         }
         #[derive(Copy, Debug, PartialEq)]
         component SpinnerTokens {
             color: Color,
             size: Length,
         }
-        surface {
-            states background: SurfaceTokens {
-                idle,
-                hover extends idle,
-            }
-            states regular: SurfaceTokens {
-                idle,
-                hover extends idle,
-            }
-            states raised: SurfaceTokens {
-                idle,
-                hover extends idle,
-            }
-        }
-        panel {
-            regular: PanelTokens,
-        }
         spinner: SpinnerTokens
-        button {
-            shape {
-                rounded { radius: Radius }
-                pill { radius: Radius }
-                circular { radius: Radius }
-            }
-            states standard_filled: ButtonTokens {
-                idle,
-                hover extends idle,
-                pressed extends hover,
-                disabled extends idle,
-            }
-            states standard_flat: ButtonTokens {
-                idle,
-                hover extends idle,
-                pressed extends hover,
-                disabled extends idle,
-            }
-            states standard_raised: ButtonTokens {
-                idle,
-                hover extends idle,
-                pressed extends hover,
-                disabled extends idle,
-            }
-            states suggested_filled inherit standard_filled,
-            states suggested_flat inherit standard_filled,
-            states suggested_raised inherit standard_filled,
-            states destructive_filled inherit standard_filled,
-            states destructive_flat inherit standard_filled,
-            states destructive_raised inherit standard_filled,
-        }
     }
 }
 
 impl ThemePack {
+    /// Returns a theme pack based on the given mode.
+    #[must_use]
+    pub fn from_mode(mode: ThemeMode) -> Self {
+        match mode {
+            ThemeMode::Light => Self::light(),
+            ThemeMode::Dark => Self::dark(),
+        }
+    }
+
     /// Returns the embedded Adwaita light baseline.
     #[must_use]
     pub fn light() -> Self {
         static ADWAITA_LIGHT: OnceLock<ThemePack> = OnceLock::new();
 
         ADWAITA_LIGHT
-            .get_or_init(|| Self::try_light().expect("embedded Adwaita theme is valid"))
+            .get_or_init(|| Self::try_light().expect("embedded Adwaita light theme is valid"))
+            .clone()
+    }
+
+    /// Returns the embedded Adwaita dark baseline.
+    #[must_use]
+    pub fn dark() -> Self {
+        static ADWAITA_DARK: OnceLock<ThemePack> = OnceLock::new();
+
+        ADWAITA_DARK
+            .get_or_init(|| Self::try_dark().expect("embedded Adwaita dark theme is valid"))
             .clone()
     }
 
     /// Loads the embedded Adwaita light baseline.
     pub fn try_light() -> Result<Self, ThemeLoadError> {
         Self::try_from_toml(ADWAITA_LIGHT_TOML)
+    }
+
+    /// Loads the embedded Adwaita dark baseline.
+    pub fn try_dark() -> Result<Self, ThemeLoadError> {
+        Self::try_from_toml(ADWAITA_DARK_TOML)
     }
 
     /// Loads a typed theme from TOML.

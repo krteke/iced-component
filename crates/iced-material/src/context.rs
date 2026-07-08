@@ -5,7 +5,7 @@ use iced_component_core::{
 
 use crate::theme::ThemePack;
 
-/// Shared Adwaita component inputs.
+/// Shared Material component inputs.
 #[derive(Clone)]
 pub struct Context {
     core: ComponentContext,
@@ -13,7 +13,7 @@ pub struct Context {
 }
 
 impl Context {
-    /// Creates an Adwaita component context from an explicit theme pack.
+    /// Creates a Material component context from an explicit theme pack.
     #[must_use]
     pub fn new(theme: ThemePack) -> Self {
         Self {
@@ -28,7 +28,7 @@ impl Context {
         &self.core
     }
 
-    /// Returns the current Adwaita theme pack.
+    /// Returns the current Material theme pack.
     #[must_use]
     pub const fn theme(&self) -> &ThemePack {
         &self.theme
@@ -47,14 +47,14 @@ impl Context {
     }
 }
 
-/// Mutable inputs used while applying Adwaita component events.
+/// Mutable inputs used while applying Material component events.
 pub struct UpdateCx<'a> {
     runtime: &'a mut MotionRuntime,
     context: &'a mut Context,
 }
 
 impl<'a> UpdateCx<'a> {
-    /// Creates an Adwaita update context.
+    /// Creates a Material update context.
     pub fn new(runtime: &'a mut MotionRuntime, context: &'a mut Context) -> Self {
         Self { runtime, context }
     }
@@ -64,19 +64,19 @@ impl<'a> UpdateCx<'a> {
         ComponentUpdateCx::new(self.runtime, &mut self.context.core)
     }
 
-    /// Returns the current Adwaita component context.
+    /// Returns the current Material component context.
     #[must_use]
     pub const fn context(&self) -> &Context {
         self.context
     }
 
-    /// Returns the current Adwaita theme pack.
+    /// Returns the current Material theme pack.
     #[must_use]
     pub const fn theme(&self) -> &ThemePack {
         self.context.theme()
     }
 
-    /// Replaces the Adwaita theme pack and invalidates style-dependent motion.
+    /// Replaces the Material theme pack and invalidates style-dependent motion.
     pub fn set_theme_pack(&mut self, theme: ThemePack) {
         self.context.theme = theme;
         self.context.core.bump_style_revision();
@@ -111,14 +111,14 @@ impl<'a> UpdateCx<'a> {
     }
 }
 
-/// Read-only inputs used while rendering Adwaita component views.
+/// Read-only inputs used while rendering Material component views.
 pub struct ViewCx<'a> {
     runtime: &'a MotionRuntime,
     context: &'a Context,
 }
 
 impl<'a> ViewCx<'a> {
-    /// Creates an Adwaita view context.
+    /// Creates a Material view context.
     #[must_use]
     pub const fn new(runtime: &'a MotionRuntime, context: &'a Context) -> Self {
         Self { runtime, context }
@@ -130,13 +130,13 @@ impl<'a> ViewCx<'a> {
         ComponentViewCx::new(self.runtime, self.context.core())
     }
 
-    /// Returns the current Adwaita component context.
+    /// Returns the current Material component context.
     #[must_use]
     pub const fn context(&self) -> &Context {
         self.context
     }
 
-    /// Returns the current Adwaita theme pack.
+    /// Returns the current Material theme pack.
     #[must_use]
     pub const fn theme(&self) -> &ThemePack {
         self.context.theme()

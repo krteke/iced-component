@@ -1,3 +1,5 @@
+//! Material theme tokens and loading errors.
+
 mod error;
 mod tokens;
 

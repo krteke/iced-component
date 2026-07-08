@@ -1,0 +1,18 @@
+[meta]
+name = "Adwaita Dark"
+mode = "dark"
+author = "GNOME libadwaita reference values"
+version = "0.1.0"
+description = "Adwaita dark colors used by currently implemented Iced Adwaita components."
+
+[app.window]
+bg = "#222226"
+fg = "#ffffff"
+
+[app.view]
+bg = "#1d1d20"
+fg = "#ffffff"
+
+[spinner]
+color = "#ffffffe6"
+size = "16px"

@@ -8,4 +8,4 @@ pub mod spinner;
 pub mod theme;
 
 pub use context::Context;
-pub use theme::{ADWAITA_LIGHT_TOML, ThemeLoadError, ThemePack};
+pub use theme::{ADWAITA_DARK_TOML, ADWAITA_LIGHT_TOML, ThemeLoadError, ThemePack};

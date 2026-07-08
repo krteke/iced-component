@@ -69,7 +69,7 @@ impl Spinner {
     /// Returns the current resolved visual inputs.
     #[must_use]
     pub fn visual(self, context: &ViewCx<'_>) -> SpinnerVisual {
-        let tokens = context.theme().spinner;
+        let tokens = context.theme().pack().spinner;
 
         SpinnerVisual::new(
             self.size.unwrap_or_else(|| tokens.size.value()),
