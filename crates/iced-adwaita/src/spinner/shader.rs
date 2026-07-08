@@ -9,14 +9,13 @@ use std::borrow::Cow;
 
 use super::SpinnerFrame;
 
-const VIEWBOX_RADIUS: f32 = 10.0;
-const VIEWBOX_ARC_LENGTH: f32 = 22.0;
 const AA_SCALE: f32 = 0.6;
 const SPINNER_WGSL: &str = include_str!("spinner.wgsl");
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct SpinnerShader {
     pub(super) frame: SpinnerFrame,
+    pub(super) diameter: f32,
     pub(super) fg: Color,
     pub(super) track: Color,
     pub(super) stroke_width: f32,
@@ -32,15 +31,14 @@ impl<Message> Program<Message> for SpinnerShader {
         _cursor: iced_wgpu::core::mouse::Cursor,
         bounds: Rectangle,
     ) -> Self::Primitive {
-        let side = bounds.width.min(bounds.height);
-        let geometry = SpinnerGeometry::new(side, self.stroke_width);
+        let geometry = SpinnerGeometry::new(self.diameter, self.stroke_width);
 
         SpinnerPrimitive {
             bounds_size: [bounds.width, bounds.height],
             radius: geometry.radius,
             stroke_width: geometry.stroke_width,
-            rotation_radians: self.frame.rotation.to_radians(),
-            sweep_radians: geometry.sweep_radians,
+            arc_start_radians: self.frame.arc_start_radians,
+            sweep_radians: self.frame.sweep_radians,
             aa_scale: AA_SCALE,
             fg: rgba(self.fg),
             track: rgba(self.track),
@@ -52,7 +50,6 @@ impl<Message> Program<Message> for SpinnerShader {
 struct SpinnerGeometry {
     radius: f32,
     stroke_width: f32,
-    sweep_radians: f32,
 }
 
 impl SpinnerGeometry {
@@ -63,7 +60,6 @@ impl SpinnerGeometry {
         Self {
             radius,
             stroke_width,
-            sweep_radians: VIEWBOX_ARC_LENGTH / VIEWBOX_RADIUS,
         }
     }
 
@@ -78,7 +74,7 @@ pub(super) struct SpinnerPrimitive {
     bounds_size: [f32; 2],
     radius: f32,
     stroke_width: f32,
-    rotation_radians: f32,
+    arc_start_radians: f32,
     sweep_radians: f32,
     aa_scale: f32,
     fg: [f32; 4],
@@ -106,7 +102,7 @@ impl Primitive for SpinnerPrimitive {
             bounds_size: self.bounds_size,
             radius,
             stroke_width,
-            rotation_radians: self.rotation_radians,
+            arc_start_radians: self.arc_start_radians,
             sweep_radians: self.sweep_radians,
             pixel_size: 1.0 / scale_factor,
             aa_scale: self.aa_scale,
@@ -143,7 +139,7 @@ struct SpinnerUniforms {
     radius: f32,
     stroke_width: f32,
 
-    rotation_radians: f32,
+    arc_start_radians: f32,
     sweep_radians: f32,
     pixel_size: f32,
     aa_scale: f32,

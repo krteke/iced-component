@@ -10,6 +10,7 @@ repository.workspace = true
 [dependencies]
 bytemuck = { workspace = true, features = ["derive"] }
 iced = { workspace = true, features = ["wgpu"] }
+iced-component-core.workspace = true
 iced_wgpu.workspace = true
 spectrum-theme = { workspace = true, features = ["macros", "toml", "iced"] }
 thiserror.workspace = true

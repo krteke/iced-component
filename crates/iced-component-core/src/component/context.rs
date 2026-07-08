@@ -124,6 +124,12 @@ impl<'a> ComponentViewCx<'a> {
     pub const fn context(&self) -> &ComponentContext {
         self.context
     }
+
+    /// Returns whether motion is reduced.
+    #[must_use]
+    pub fn reduce_motion(&self) -> bool {
+        self.context.reduce_motion
+    }
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ struct Uniforms {
     bounds_size: vec2<f32>,
     radius: f32,
     stroke_width: f32,
-    rotation_radians: f32,
+    arc_start_radians: f32,
     sweep_radians: f32,
     pixel_size: f32,
     aa_scale: f32,
@@ -102,7 +102,7 @@ fn fs_main(input: VsOut) -> @location(0) vec4<f32> {
         aa
     );
 
-    let angle = wrap_angle(atan2(q.y, q.x) - u.rotation_radians);
+    let angle = wrap_angle(atan2(q.y, q.x) - u.arc_start_radians);
     var body_angle: f32 = 0.0;
 
     if angle <= u.sweep_radians {
@@ -114,11 +114,11 @@ fn fs_main(input: VsOut) -> @location(0) vec4<f32> {
     let half_width = u.stroke_width * 0.5;
 
     let start_cap_center = center + vec2<f32>(
-        cos(u.rotation_radians),
-        sin(u.rotation_radians)
+        cos(u.arc_start_radians),
+        sin(u.arc_start_radians)
     ) * u.radius;
 
-    let end_rotation = u.rotation_radians + u.sweep_radians;
+    let end_rotation = u.arc_start_radians + u.sweep_radians;
     let end_cap_center = center + vec2<f32>(
         cos(end_rotation),
         sin(end_rotation)

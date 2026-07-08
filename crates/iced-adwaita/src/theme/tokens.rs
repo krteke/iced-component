@@ -52,6 +52,11 @@ define_theme_tokens! {
             spacing: Length,
             title_size: Length,
         }
+        #[derive(Copy, Debug, PartialEq)]
+        component SpinnerTokens {
+            color: Color,
+            size: Length,
+        }
         surface {
             states background: SurfaceTokens {
                 idle,
@@ -69,6 +74,7 @@ define_theme_tokens! {
         panel {
             regular: PanelTokens,
         }
+        spinner: SpinnerTokens
         button {
             shape {
                 rounded { radius: Radius }
@@ -106,16 +112,16 @@ define_theme_tokens! {
 impl ThemePack {
     /// Returns the embedded Adwaita light baseline.
     #[must_use]
-    pub fn adwaita() -> Self {
-        static ADWAITA: OnceLock<ThemePack> = OnceLock::new();
+    pub fn light() -> Self {
+        static ADWAITA_LIGHT: OnceLock<ThemePack> = OnceLock::new();
 
-        ADWAITA
-            .get_or_init(|| Self::try_adwaita().expect("embedded Adwaita theme is valid"))
+        ADWAITA_LIGHT
+            .get_or_init(|| Self::try_light().expect("embedded Adwaita theme is valid"))
             .clone()
     }
 
     /// Loads the embedded Adwaita light baseline.
-    pub fn try_adwaita() -> Result<Self, ThemeLoadError> {
+    pub fn try_light() -> Result<Self, ThemeLoadError> {
         Self::try_from_toml(ADWAITA_LIGHT_TOML)
     }
 

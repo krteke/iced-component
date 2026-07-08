@@ -11,4 +11,6 @@ fn embedded_theme_loads_from_toml() {
         theme.button.standard_filled.idle.bg,
         theme.surface.raised.idle.bg
     );
+    assert_eq!(theme.spinner.color, "#8c8c90".parse::<Color>().unwrap());
+    assert!((theme.spinner.size.value() - 16.0).abs() < 0.001);
 }

@@ -1235,6 +1235,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "iced",
+ "iced-component-core",
  "iced_wgpu",
  "spectrum-theme",
  "thiserror 2.0.18",
@@ -1259,6 +1260,8 @@ name = "iced-material"
 version = "0.1.0"
 dependencies = [
  "iced-component-core",
+ "spectrum-theme",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

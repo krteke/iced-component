@@ -29,6 +29,10 @@ padding = "18px"
 spacing = "12px"
 title_size = "17px"
 
+[spinner.regular]
+color = "#8c8c90"
+size = "16px"
+
 [surface.background.idle]
 bg = "{app.bg}"
 fg = "{app.fg}"
