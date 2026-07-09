@@ -46,14 +46,26 @@ impl Spinner {
 
     /// Advances the spinner sampling clock.
     pub fn advance(&mut self, now: Instant) {
+        #[cfg(feature = "tracing")]
+        let was_started = self.started_at.is_some();
         let started_at = *self.started_at.get_or_insert(now);
         self.elapsed = now.duration_since(started_at);
+        #[cfg(feature = "tracing")]
+        if !was_started {
+            tracing::debug!(
+                target: "iced_adwaita::spinner",
+                ?now,
+                "spinner timeline started"
+            );
+        }
     }
 
     /// Restarts the spinner timeline from the next frame.
     pub fn reset(&mut self) {
         self.started_at = None;
         self.elapsed = Duration::ZERO;
+        #[cfg(feature = "tracing")]
+        tracing::debug!(target: "iced_adwaita::spinner", "spinner timeline reset");
     }
 
     /// Returns the current sampled frame.

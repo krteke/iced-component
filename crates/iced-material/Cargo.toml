@@ -12,5 +12,9 @@ iced-component-core.workspace = true
 spectrum-theme = { workspace = true, features = ["macros", "toml", "iced"] }
 thiserror.workspace = true
 
+[features]
+default = []
+tracing = ["iced-component-core/tracing"]
+
 [lints]
 workspace = true

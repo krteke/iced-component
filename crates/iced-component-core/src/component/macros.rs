@@ -44,6 +44,25 @@ macro_rules! sync_components {
     }};
 }
 
+/// Applies the same update input to multiple components.
+///
+/// The macro returns `Result<bool, MotionError>`, where the boolean is `true`
+/// when at least one component submitted a runtime motion update.
+#[macro_export]
+macro_rules! update_components {
+    ($cx:expr, $input:expr, [$($component:expr),* $(,)?]) => {{
+        || -> Result<bool, $crate::anim::MotionError> {
+            let cx = &mut $cx;
+            let input = $input;
+            let mut changed = false;
+            $(
+                changed |= ($component).update(input, cx)?;
+            )*
+            Ok(changed)
+        }()
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use aura_anim::prelude::MotionRuntime;
@@ -68,6 +87,16 @@ mod tests {
         ) -> Result<bool, crate::anim::MotionError> {
             self.syncs += 1;
             Ok(self.registered > 0)
+        }
+
+        #[allow(clippy::unnecessary_wraps)]
+        fn update(
+            &mut self,
+            input: usize,
+            _cx: &mut ComponentUpdateCx<'_>,
+        ) -> Result<bool, crate::anim::MotionError> {
+            self.syncs += input;
+            Ok(input > 0)
         }
     }
 
@@ -102,6 +131,21 @@ mod tests {
         crate::register_components!(cx, [first]);
 
         let changed = crate::sync_components!(cx, [first, second]).unwrap();
+
+        assert!(changed);
+        assert_eq!(first.syncs, 2);
+        assert_eq!(second.syncs, 2);
+    }
+
+    #[test]
+    fn update_components_applies_same_input_to_each_component() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::default();
+        let mut first = DummyComponent::default();
+        let mut second = DummyComponent::default();
+
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
+        let changed = crate::update_components!(cx, 2usize, [first, second]).unwrap();
 
         assert!(changed);
         assert_eq!(first.syncs, 2);

@@ -10,5 +10,9 @@ repository.workspace = true
 [dependencies]
 iced-component-core.workspace = true
 
+[features]
+default = []
+tracing = ["iced-component-core/tracing"]
+
 [lints]
 workspace = true

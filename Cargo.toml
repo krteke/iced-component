@@ -18,10 +18,16 @@ repository = "https://github.com/krteke/arua-iced-component"
 [workspace.dependencies]
 spectrum-theme = { git = "https://github.com/krteke/void-spectrum" }
 aura-anim = { git = "https://github.com/krteke/aura-anim-iced", default-features = false }
+
 iced = { version = "0.14.0", features = ["tokio"] }
 iced_wgpu = "0.14.0"
 bytemuck = "1.25.0"
 thiserror = "2.0.18"
+tracing = "0.1.44"
+serde = { version = "1.0.228", features = ["derive"] }
+
+float-cmp = "0.10.0"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 iced-component-core = { version = "0.1.0", path = "crates/iced-component-core" }
 iced-component = { version = "0.1.0", path = "crates/iced-component" }

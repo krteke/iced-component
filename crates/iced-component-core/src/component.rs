@@ -4,13 +4,12 @@ mod context;
 mod macros;
 
 use aura_anim::{
-    core::{
-        runtime::PlaybackId,
-        traits::{Animatable, IntoMotionAnimation},
-    },
+    core::{runtime::PlaybackId, traits::Animatable},
     prelude::{Animation, Motion, MotionError, MotionRuntime, Timing, tween_to},
 };
-pub use context::{ComponentContext, ComponentUpdateCx, ComponentViewCx, StyleRevision};
+pub use context::{
+    ComponentContext, ComponentUpdateCx, ComponentViewCx, StyleChange, StyleRevision,
+};
 
 /// Component-owned optional motion slot.
 ///
@@ -21,9 +20,8 @@ pub use context::{ComponentContext, ComponentUpdateCx, ComponentViewCx, StyleRev
 /// The slot records the [`StyleRevision`] associated with the registered
 /// runtime value. Rendering code should use [`value_if_current`](Self::value_if_current)
 /// and fall back to freshly resolved style values when the slot is stale.
-/// Interaction paths that need a fresh starting value after a style change
-/// should use [`tween_from_to_or_finish`](Self::tween_from_to_or_finish), which
-/// re-registers stale runtime handles from the provided initial value.
+/// Interaction paths only animate after explicit registration. Before
+/// registration, component state can still jump to its resolved final value.
 #[derive(Debug)]
 pub struct MotionSlot<T: Animatable> {
     motion: Option<Motion<T>>,
@@ -59,125 +57,81 @@ impl<T: Animatable> MotionSlot<T> {
         timing: Timing,
     ) -> Motion<T> {
         if let Some(motion) = self.motion {
+            trace_slot::<T>("register_reuse", Some(motion), self.style_revision, None);
             return motion;
         }
 
         let motion = runtime.motion_with(initial, timing);
         self.motion = Some(motion);
         self.style_revision = Some(style_revision);
+        trace_slot::<T>("register", Some(motion), self.style_revision, None);
         motion
     }
 
-    /// Plays a tween toward `target` using a timing resolved at call time.
-    ///
-    /// Before registration this only updates the fallback value and returns
-    /// `Ok(false)`.
-    pub fn tween_to(
-        &mut self,
-        target: T,
-        style_revision: StyleRevision,
-        timing: Timing,
-        runtime: &mut MotionRuntime,
-    ) -> Result<bool, MotionError> {
-        let Some(motion) = self.motion else {
-            return Ok(false);
-        };
-
-        motion.play(tween_to(target, timing), runtime)?;
-        self.style_revision = Some(style_revision);
-        Ok(true)
-    }
-
-    /// Plays a tween and immediately finishes it when reduced motion is enabled.
+    /// Plays a tween toward `target`.
     ///
     /// Finishing the real animation keeps playback completion semantics owned by
     /// `aura-anim`, including direction, iteration, spring, and sequence rules.
-    pub fn tween_to_or_finish(
+    ///
+    /// Returns `Ok(false)` before explicit registration.
+    pub fn tween(
         &mut self,
         target: T,
         timing: Timing,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         let Some(motion) = self.motion else {
+            trace_slot::<T>(
+                "tween_skipped_unregistered",
+                None,
+                self.style_revision,
+                Some(cx.reduce_motion()),
+            );
             return Ok(false);
         };
 
         motion.play(tween_to(target, timing), cx.runtime)?;
         finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
         self.style_revision = Some(cx.context().style_revision());
+        trace_slot::<T>(
+            "tween",
+            Some(motion),
+            self.style_revision,
+            Some(cx.reduce_motion()),
+        );
         Ok(true)
     }
 
-    /// Registers from `initial` when needed, then plays a tween toward `target`.
-    pub fn tween_from_to(
+    /// Plays an arbitrary animation on an explicitly registered slot.
+    ///
+    /// Returns `Ok(false)` before registration.
+    pub fn play<A>(
         &mut self,
-        initial: T,
-        target: T,
-        style_revision: StyleRevision,
-        timing: Timing,
-        runtime: &mut MotionRuntime,
-    ) -> Result<bool, MotionError> {
-        let motion = self.register_fresh_if_stale(runtime, initial, style_revision, timing)?;
-
-        motion.play(tween_to(target, timing), runtime)?;
-        self.style_revision = Some(style_revision);
-        Ok(true)
-    }
-
-    /// Registers from `initial` when needed, plays a tween, and finishes it when reduced.
-    pub fn tween_from_to_or_finish(
-        &mut self,
-        initial: T,
-        target: T,
-        timing: Timing,
-        cx: &mut ComponentUpdateCx<'_>,
-    ) -> Result<bool, MotionError> {
-        let style_revision = cx.context().style_revision();
-        let motion = self.register_fresh_if_stale(cx.runtime, initial, style_revision, timing)?;
-
-        motion.play(tween_to(target, timing), cx.runtime)?;
-        finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
-        self.style_revision = Some(style_revision);
-        Ok(true)
-    }
-
-    /// Registers from `initial` when needed, plays an arbitrary animation, and
-    /// finishes it when reduced motion is enabled.
-    pub fn play_from_or_finish<A>(
-        &mut self,
-        initial: T,
         playback: A,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<bool, MotionError>
     where
         A: Animation<T>,
     {
-        let style_revision = cx.context().style_revision();
-        let motion =
-            self.register_fresh_if_stale(cx.runtime, initial, style_revision, Timing::default())?;
+        let Some(motion) = self.motion else {
+            trace_slot::<T>(
+                "play_skipped_unregistered",
+                None,
+                self.style_revision,
+                Some(cx.reduce_motion()),
+            );
+            return Ok(false);
+        };
 
         motion.play(playback, cx.runtime)?;
         finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
-        self.style_revision = Some(style_revision);
-        Ok(true)
-    }
-
-    /// Registers from `initial` when needed, then plays an arbitrary animation.
-    pub fn play_from<A>(
-        &mut self,
-        initial: T,
-        playback: A,
-        cx: &mut ComponentUpdateCx<'_>,
-    ) -> Result<bool, MotionError>
-    where
-        A: Animation<T>,
-    {
-        let style_revision = cx.context().style_revision();
-        let motion =
-            self.register_fresh_if_stale(cx.runtime, initial, style_revision, Timing::default())?;
-
-        motion.play(playback, cx.runtime)?;
-        self.style_revision = Some(style_revision);
+        self.style_revision = Some(cx.context().style_revision());
+        trace_slot::<T>(
+            "play",
+            Some(motion),
+            self.style_revision,
+            Some(cx.reduce_motion()),
+        );
         Ok(true)
     }
 
@@ -215,87 +169,50 @@ impl<T: Animatable> MotionSlot<T> {
         runtime: &mut MotionRuntime,
     ) -> Result<bool, MotionError> {
         let Some(motion) = self.motion else {
+            trace_slot::<T>(
+                "transition_to_skipped_unregistered",
+                None,
+                self.style_revision,
+                None,
+            );
             return Ok(false);
         };
 
         motion.transition_to(target, runtime)?;
+        trace_slot::<T>("transition_to", Some(motion), self.style_revision, None);
         Ok(true)
     }
 
-    /// Replaces the registered motion's current animation.
-    ///
-    /// Returns `Ok(false)` when called before registration.
-    pub fn play<P, Kind>(
-        &self,
-        playback: P,
-        runtime: &mut MotionRuntime,
-    ) -> Result<bool, MotionError>
-    where
-        P: IntoMotionAnimation<T, Kind>,
-    {
-        let Some(motion) = self.motion else {
-            return Ok(false);
-        };
-
-        motion.play(playback, runtime)?;
-        Ok(true)
-    }
-
-    /// Replaces the current animation and immediately finishes it when reduced motion is enabled.
-    ///
-    /// Returns `Ok(false)` when called before registration.
-    pub fn play_or_finish<P, Kind>(
-        &self,
-        playback: P,
-        cx: &mut ComponentUpdateCx<'_>,
-    ) -> Result<bool, MotionError>
-    where
-        P: IntoMotionAnimation<T, Kind>,
-    {
-        let Some(motion) = self.motion else {
-            return Ok(false);
-        };
-
-        motion.play(playback, cx.runtime)?;
-        finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
-        Ok(true)
-    }
-
-    /// Replaces the registered motion's current animation and returns its playback ID.
+    /// Plays an arbitrary tracked animation on an explicitly registered slot.
     ///
     /// Returns `Ok(None)` when called before registration.
-    pub fn play_tracked<P, Kind>(
-        &self,
-        playback: P,
-        runtime: &mut MotionRuntime,
-    ) -> Result<Option<PlaybackId>, MotionError>
-    where
-        P: IntoMotionAnimation<T, Kind>,
-    {
-        let Some(motion) = self.motion else {
-            return Ok(None);
-        };
-
-        motion.play_tracked(playback, runtime).map(Some)
-    }
-
-    /// Replaces the current animation, returns its playback ID, and optionally finishes it.
-    ///
-    /// Returns `Ok(None)` when called before registration.
-    pub fn play_tracked_or_finish<P, Kind>(
-        &self,
-        playback: P,
+    pub fn play_tracked<A>(
+        &mut self,
+        playback: A,
         cx: &mut ComponentUpdateCx<'_>,
     ) -> Result<Option<PlaybackId>, MotionError>
     where
-        P: IntoMotionAnimation<T, Kind>,
+        A: Animation<T>,
     {
         let Some(motion) = self.motion else {
+            trace_slot::<T>(
+                "play_tracked_skipped_unregistered",
+                None,
+                self.style_revision,
+                Some(cx.reduce_motion()),
+            );
             return Ok(None);
         };
 
         let playback = motion.play_tracked(playback, cx.runtime)?;
         finish_if_reduced(motion, cx.reduce_motion(), cx.runtime)?;
+        self.style_revision = Some(cx.context().style_revision());
+        trace_slot::<T>(
+            "play_tracked",
+            Some(motion),
+            self.style_revision,
+            Some(cx.reduce_motion()),
+        );
         Ok(Some(playback))
     }
 
@@ -318,25 +235,6 @@ impl<T: Animatable> MotionSlot<T> {
 
         self.value(runtime)
     }
-
-    fn register_fresh_if_stale(
-        &mut self,
-        runtime: &mut MotionRuntime,
-        initial: T,
-        style_revision: StyleRevision,
-        timing: Timing,
-    ) -> Result<Motion<T>, MotionError> {
-        if self.motion.is_some() && self.is_current(style_revision) {
-            return Ok(self.register_with(runtime, initial, style_revision, timing));
-        }
-
-        if let Some(motion) = self.motion.take() {
-            self.style_revision = None;
-            motion.remove(runtime)?;
-        }
-
-        Ok(self.register_with(runtime, initial, style_revision, timing))
-    }
 }
 
 impl<T: Animatable> Default for MotionSlot<T> {
@@ -345,12 +243,44 @@ impl<T: Animatable> Default for MotionSlot<T> {
     }
 }
 
+#[cfg(feature = "tracing")]
+fn trace_slot<T: Animatable>(
+    action: &'static str,
+    motion: Option<Motion<T>>,
+    _style_revision: Option<StyleRevision>,
+    _reduce_motion: Option<bool>,
+) {
+    let motion_id = motion.map(Motion::motion_id);
+    let motion_type = core::any::type_name::<T>()
+        .rsplit("::")
+        .next()
+        .unwrap_or("unknown");
+
+    tracing::trace!(
+        target: "iced_component_core::motion_slot",
+        action,
+        motion_type,
+        ?motion_id,
+        "motion slot"
+    );
+}
+
+#[cfg(not(feature = "tracing"))]
+fn trace_slot<T: Animatable>(
+    _action: &'static str,
+    _motion: Option<Motion<T>>,
+    _style_revision: Option<StyleRevision>,
+    _reduce_motion: Option<bool>,
+) {
+}
+
 fn finish_if_reduced<T: Animatable>(
     motion: Motion<T>,
     reduce_motion: bool,
     runtime: &mut MotionRuntime,
 ) -> Result<(), MotionError> {
     if reduce_motion {
+        trace_slot::<T>("finish_reduced_motion", Some(motion), None, Some(true));
         motion.finish(runtime)?;
     }
 
@@ -418,38 +348,35 @@ mod tests {
     }
 
     #[test]
-    fn tween_from_to_registers_before_playing() {
+    fn tween_is_ignored_before_registration() {
         let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::default();
         let mut motion = MotionSlot::new();
 
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
         let changed = motion
-            .tween_from_to(
-                0.0_f32,
-                1.0,
-                StyleRevision::default(),
-                Timing::linear(100.0),
-                &mut runtime,
-            )
+            .tween(1.0_f32, Timing::linear(100.0), &mut cx)
             .unwrap();
-        runtime.tick(Duration::from_millis(100.0));
 
-        assert!(changed);
-        assert_eq!(runtime.motion_count(), 1);
-        assert_eq!(motion.value(&runtime).unwrap().copied(), Some(1.0));
+        assert!(!changed);
+        assert_eq!(runtime.motion_count(), 0);
+        assert_eq!(motion.value(&runtime).unwrap().copied(), None);
     }
 
     #[test]
     fn registered_motion_can_play_timeline() {
         let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::default();
         let mut motion = MotionSlot::new();
 
-        let _handle = motion.register(&mut runtime, 0.0_f32, StyleRevision::default());
+        let _handle = motion.register(&mut runtime, 0.0_f32, context.style_revision());
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
         let played = motion
             .play(
                 Sequence::new(0.0_f32)
                     .then(Tween::between(0.0, 2.0, Timing::linear(100.0)))
                     .then(Tween::between(2.0, 1.0, Timing::linear(100.0))),
-                &mut runtime,
+                &mut cx,
             )
             .unwrap();
         runtime.tick(Duration::from_millis(200.0));
@@ -466,9 +393,7 @@ mod tests {
         let _ = motion.register(&mut runtime, 0.0_f32, context.style_revision());
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
 
-        let played = motion
-            .tween_to_or_finish(1.0, Timing::linear(100.0), &mut cx)
-            .unwrap();
+        let played = motion.tween(1.0, Timing::linear(100.0), &mut cx).unwrap();
 
         assert!(played);
         assert_eq!(motion.value(&runtime).unwrap().copied(), Some(1.0));
@@ -511,7 +436,7 @@ mod tests {
         let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
 
         let playback = motion
-            .play_tracked_or_finish(Tween::between(0.0, 1.0, Timing::linear(100.0)), &mut cx)
+            .play_tracked(Tween::between(0.0, 1.0, Timing::linear(100.0)), &mut cx)
             .unwrap()
             .expect("registered motion should start tracked playback");
 
@@ -523,14 +448,13 @@ mod tests {
     #[test]
     fn tracked_play_returns_playback_id() {
         let mut runtime = MotionRuntime::new();
+        let mut context = ComponentContext::default();
         let mut motion = MotionSlot::new();
 
-        let handle = motion.register(&mut runtime, 0.0_f32, StyleRevision::default());
+        let handle = motion.register(&mut runtime, 0.0_f32, context.style_revision());
+        let mut cx = ComponentUpdateCx::new(&mut runtime, &mut context);
         let playback = motion
-            .play_tracked(
-                Tween::between(0.0, 1.0, Timing::linear(100.0)),
-                &mut runtime,
-            )
+            .play_tracked(Tween::between(0.0, 1.0, Timing::linear(100.0)), &mut cx)
             .unwrap()
             .expect("registered motion should start tracked playback");
         runtime.tick(Duration::from_millis(100.0));

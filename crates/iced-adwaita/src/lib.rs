@@ -1,5 +1,7 @@
 //! Adwaita theme implementation for `iced-component`.
 
+/// Adwaita button component primitives.
+pub mod button;
 /// Shared Adwaita component context.
 pub mod context;
 /// Adwaita spinner rendering primitives.

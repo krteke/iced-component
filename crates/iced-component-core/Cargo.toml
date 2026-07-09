@@ -9,6 +9,11 @@ repository.workspace = true
 
 [dependencies]
 aura-anim = { workspace = true, features = ["oklaba"] }
+tracing = { workspace = true, optional = true }
+
+[features]
+default = []
+tracing = ["dep:tracing", "aura-anim/tracing"]
 
 [lints]
 workspace = true

@@ -13,6 +13,114 @@ fg = "#000006cc"
 bg = "#ffffff"
 fg = "#000006cc"
 
+[accent]
+bg = "#3584e4"
+fg = "#ffffff"
+color = "#1c71d8"
+
+[button]
+min_width = "16px"
+min_height = "24px"
+padding_x = "17px"
+padding_y = "5px"
+
+[button.shape.rounded]
+radius = "9px"
+
+[button.shape.pill]
+radius = "9999px"
+
+[button.shape.circular]
+radius = "9999px"
+
+[button.standard.idle]
+bg = "#00000614"
+fg = "{app.window.fg}"
+border = "#00000000"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d880"
+
+[button.standard.hover]
+bg = "#0000061f"
+
+[button.standard.pressed]
+bg = "#0000063d"
+
+[button.standard.disabled]
+bg = "{button.standard.idle.bg}"
+fg = "{button.standard.idle.fg}"
+border = "{button.standard.idle.border}"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d800"
+
+[button.flat.idle]
+bg = "#00000000"
+fg = "{app.window.fg}"
+border = "#00000000"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d880"
+
+[button.flat.hover]
+bg = "#0000060e"
+
+[button.flat.pressed]
+bg = "#00000621"
+
+[button.flat.disabled]
+bg = "#00000000"
+fg = "#0000063d"
+border = "#00000000"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d800"
+
+[button.suggested.idle]
+bg = "{accent.bg}"
+fg = "{accent.fg}"
+border = "#00000000"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d880"
+
+[button.suggested.hover]
+bg = "#4990e7"
+
+[button.suggested.pressed]
+bg = "#2a6ab8"
+
+[button.suggested.disabled]
+bg = "#3584e480"
+fg = "#ffffff80"
+border = "#00000000"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d800"
+
+[button.destructive.idle]
+bg = "#c01c2826"
+fg = "#c01c28"
+border = "#00000000"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d880"
+
+[button.destructive.hover]
+bg = "#c01c2833"
+
+[button.destructive.pressed]
+bg = "#c01c2859"
+
+[button.destructive.disabled]
+bg = "#c01c2814"
+fg = "#c01c287a"
+border = "#00000000"
+border_width = "0px"
+radius = "9px"
+focus_ring = "#1c71d800"
+
 [spinner]
 color = "#00000670"
 size = "16px"

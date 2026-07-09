@@ -1,4 +1,4 @@
-use spectrum_theme::{Color, Length, config::TomlThemeSource, define_theme_tokens};
+use spectrum_theme::{Color, Length, Radius, config::TomlThemeSource, define_theme_tokens};
 use std::sync::OnceLock;
 
 use crate::context::ThemeMode;
@@ -7,6 +7,7 @@ use super::{ADWAITA_DARK_TOML, ADWAITA_LIGHT_TOML, ThemeLoadError};
 
 define_theme_tokens! {
     #[derive(Clone)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct ThemePack {
         app {
             window {
@@ -18,14 +19,80 @@ define_theme_tokens! {
                 fg: Color,
             }
         }
+        accent {
+            bg: Color,
+            fg: Color,
+            color: Color,
+        }
+        #[derive(Copy, Debug, PartialEq)]
+        component ButtonTokens {
+            bg: Color,
+            fg: Color,
+            border: Color,
+            border_width: Length,
+            radius: Radius,
+            focus_ring: Color,
+        }
         #[derive(Copy, Debug, PartialEq)]
         component SpinnerTokens {
             color: Color,
             size: Length,
         }
+        button {
+            min_width: Length,
+            min_height: Length,
+            padding_x: Length,
+            padding_y: Length,
+            shape {
+                rounded { radius: Radius }
+                pill { radius: Radius }
+                circular { radius: Radius }
+            }
+            states standard: ButtonTokens {
+                idle,
+                hover extends idle,
+                pressed extends hover,
+                disabled extends idle,
+            }
+            states flat: ButtonTokens {
+                idle,
+                hover extends idle,
+                pressed extends hover,
+                disabled extends idle,
+            }
+            states suggested: ButtonTokens {
+                idle,
+                hover extends idle,
+                pressed extends hover,
+                disabled extends idle,
+            }
+            states destructive: ButtonTokens {
+                idle,
+                hover extends idle,
+                pressed extends hover,
+                disabled extends idle,
+            }
+        }
         spinner: SpinnerTokens
     }
 }
+
+/// Standard button token group generated for [`ThemePack`].
+pub type ButtonStandardTokens = ThemePackStandardStates;
+/// Standard button state enum generated for [`ThemePack`].
+pub type ButtonStandardState = ThemePackStandardState;
+/// Flat button token group generated for [`ThemePack`].
+pub type ButtonFlatTokens = ThemePackFlatStates;
+/// Flat button state enum generated for [`ThemePack`].
+pub type ButtonFlatState = ThemePackFlatState;
+/// Suggested button token group generated for [`ThemePack`].
+pub type ButtonSuggestedTokens = ThemePackSuggestedStates;
+/// Suggested button state enum generated for [`ThemePack`].
+pub type ButtonSuggestedState = ThemePackSuggestedState;
+/// Destructive button token group generated for [`ThemePack`].
+pub type ButtonDestructiveTokens = ThemePackDestructiveStates;
+/// Destructive button state enum generated for [`ThemePack`].
+pub type ButtonDestructiveState = ThemePackDestructiveState;
 
 impl ThemePack {
     /// Returns a theme pack based on the given mode.
