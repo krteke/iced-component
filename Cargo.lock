@@ -1359,8 +1359,10 @@ name = "iced-material"
 version = "0.1.0"
 dependencies = [
  "iced-component-core",
+ "serde",
  "spectrum-theme",
  "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]

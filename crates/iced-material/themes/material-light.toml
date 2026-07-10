@@ -1,0 +1,241 @@
+seed = "#6750a4"
+
+[meta]
+name = "Material 3 Light"
+mode = "light"
+author = "Material 3 seed-derived baseline"
+version = "0.1.0"
+description = "Material 3 roles resolved from the configured seed."
+
+[palette.background]
+color = "{material.background}"
+on_color = "{material.on_background}"
+
+[palette.primary]
+color = "{material.primary}"
+on_color = "{material.on_primary}"
+container = "{material.primary_container}"
+on_container = "{material.on_primary_container}"
+
+[palette.secondary]
+color = "{material.secondary}"
+on_color = "{material.on_secondary}"
+container = "{material.secondary_container}"
+on_container = "{material.on_secondary_container}"
+
+[palette.tertiary]
+color = "{material.tertiary}"
+on_color = "{material.on_tertiary}"
+container = "{material.tertiary_container}"
+on_container = "{material.on_tertiary_container}"
+
+[palette.error]
+color = "{material.error}"
+on_color = "{material.on_error}"
+container = "{material.error_container}"
+on_container = "{material.on_error_container}"
+
+[palette.surface]
+color = "{material.surface}"
+on_color = "{material.on_surface}"
+on_color_variant = "{material.on_surface_variant}"
+dim = "{material.surface_dim}"
+bright = "{material.surface_bright}"
+variant = "{material.surface_variant}"
+
+[palette.surface.container]
+lowest = "{material.surface_container_lowest}"
+low = "{material.surface_container_low}"
+base = "{material.surface_container}"
+high = "{material.surface_container_high}"
+highest = "{material.surface_container_highest}"
+
+[palette.inverse]
+surface = "{material.inverse_surface}"
+on_surface = "{material.inverse_on_surface}"
+primary = "{material.inverse_primary}"
+
+[palette.outline]
+color = "{material.outline}"
+variant = "{material.outline_variant}"
+
+[palette.fixed.primary]
+color = "{material.primary_fixed}"
+dim = "{material.primary_fixed_dim}"
+on_color = "{material.on_primary_fixed}"
+on_color_variant = "{material.on_primary_fixed_variant}"
+
+[palette.fixed.secondary]
+color = "{material.secondary_fixed}"
+dim = "{material.secondary_fixed_dim}"
+on_color = "{material.on_secondary_fixed}"
+on_color_variant = "{material.on_secondary_fixed_variant}"
+
+[palette.fixed.tertiary]
+color = "{material.tertiary_fixed}"
+dim = "{material.tertiary_fixed_dim}"
+on_color = "{material.on_tertiary_fixed}"
+on_color_variant = "{material.on_tertiary_fixed_variant}"
+
+[palette]
+shadow = "{material.shadow}"
+scrim = "{material.scrim}"
+
+[button]
+container_height = "40px"
+corner_radius = "9999px"
+label_size = "14px"
+label_line_height = "20px"
+icon_size = "18px"
+leading_padding = "24px"
+trailing_padding = "24px"
+leading_icon_padding = "16px"
+trailing_icon_padding = "16px"
+outlined_border_width = "1px"
+
+[button.elevated.idle]
+background = "{palette.surface.container.low}"
+background_opacity = "1"
+foreground = "{palette.primary.color}"
+foreground_opacity = "1"
+border = "#00000000"
+border_opacity = "0"
+border_width = "0px"
+radius = "9999px"
+shadow = "{palette.shadow}"
+shadow_opacity = "0.15"
+shadow_y = "1px"
+shadow_blur = "3px"
+state_layer = "{palette.primary.color}"
+state_layer_opacity = "0"
+
+[button.elevated.hover]
+shadow_y = "2px"
+shadow_blur = "6px"
+state_layer_opacity = "0.08"
+
+[button.elevated.focus]
+state_layer_opacity = "0.10"
+
+[button.elevated.disabled]
+background = "{palette.surface.on_color}"
+background_opacity = "0.12"
+foreground = "{palette.surface.on_color}"
+foreground_opacity = "0.38"
+shadow_opacity = "0"
+
+[button.filled.idle]
+background = "{palette.primary.color}"
+background_opacity = "1"
+foreground = "{palette.primary.on_color}"
+foreground_opacity = "1"
+border = "#00000000"
+border_opacity = "0"
+border_width = "0px"
+radius = "9999px"
+shadow = "{palette.shadow}"
+shadow_opacity = "0"
+shadow_y = "0px"
+shadow_blur = "0px"
+state_layer = "{palette.primary.on_color}"
+state_layer_opacity = "0"
+
+[button.filled.hover]
+shadow_opacity = "0.15"
+shadow_y = "1px"
+shadow_blur = "3px"
+state_layer_opacity = "0.08"
+
+[button.filled.focus]
+state_layer_opacity = "0.10"
+
+[button.filled.disabled]
+background = "{palette.surface.on_color}"
+background_opacity = "0.12"
+foreground = "{palette.surface.on_color}"
+foreground_opacity = "0.38"
+
+[button.filled_tonal.idle]
+background = "{palette.secondary.container}"
+background_opacity = "1"
+foreground = "{palette.secondary.on_container}"
+foreground_opacity = "1"
+border = "#00000000"
+border_opacity = "0"
+border_width = "0px"
+radius = "9999px"
+shadow = "{palette.shadow}"
+shadow_opacity = "0"
+shadow_y = "0px"
+shadow_blur = "0px"
+state_layer = "{palette.secondary.on_container}"
+state_layer_opacity = "0"
+
+[button.filled_tonal.hover]
+shadow_opacity = "0.15"
+shadow_y = "1px"
+shadow_blur = "3px"
+state_layer_opacity = "0.08"
+
+[button.filled_tonal.focus]
+state_layer_opacity = "0.10"
+
+[button.filled_tonal.disabled]
+background = "{palette.surface.on_color}"
+background_opacity = "0.12"
+foreground = "{palette.surface.on_color}"
+foreground_opacity = "0.38"
+
+[button.outlined.idle]
+background = "#00000000"
+background_opacity = "0"
+foreground = "{palette.primary.color}"
+foreground_opacity = "1"
+border = "{palette.outline.color}"
+border_opacity = "1"
+border_width = "1px"
+radius = "9999px"
+shadow = "#00000000"
+shadow_opacity = "0"
+shadow_y = "0px"
+shadow_blur = "0px"
+state_layer = "{palette.primary.color}"
+state_layer_opacity = "0"
+
+[button.outlined.hover]
+state_layer_opacity = "0.08"
+
+[button.outlined.focus]
+state_layer_opacity = "0.10"
+
+[button.outlined.disabled]
+foreground = "{palette.surface.on_color}"
+foreground_opacity = "0.38"
+border = "{palette.surface.on_color}"
+border_opacity = "0.12"
+
+[button.text.idle]
+background = "#00000000"
+background_opacity = "0"
+foreground = "{palette.primary.color}"
+foreground_opacity = "1"
+border = "#00000000"
+border_opacity = "0"
+border_width = "0px"
+radius = "9999px"
+shadow = "#00000000"
+shadow_opacity = "0"
+shadow_y = "0px"
+shadow_blur = "0px"
+state_layer = "{palette.primary.color}"
+state_layer_opacity = "0"
+
+[button.text.hover]
+state_layer_opacity = "0.08"
+
+[button.text.focus]
+state_layer_opacity = "0.10"
+
+[button.text.disabled]
+foreground = "{palette.surface.on_color}"
+foreground_opacity = "0.38"

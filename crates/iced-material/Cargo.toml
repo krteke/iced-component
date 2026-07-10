@@ -11,10 +11,13 @@ repository.workspace = true
 iced-component-core.workspace = true
 spectrum-theme = { workspace = true, features = ["macros", "toml", "iced"] }
 thiserror.workspace = true
+tracing = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
 
 [features]
 default = []
-tracing = ["iced-component-core/tracing"]
+serde = ["dep:serde", "spectrum-theme/serde"]
+tracing = ["dep:tracing", "iced-component-core/tracing"]
 
 [lints]
 workspace = true
