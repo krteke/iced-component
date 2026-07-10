@@ -1,11 +1,10 @@
 //! Adwaita icon button component.
 
+mod content;
 mod source;
+mod text_button;
 
-use iced::{
-    Element, Length,
-    widget::{svg, text},
-};
+use iced::widget::svg;
 use spectrum_theme::iced::IcedColorAdapter;
 
 use crate::context::{UpdateCx, ViewCx};
@@ -15,7 +14,9 @@ use super::{
     ButtonVariant, ButtonView,
 };
 
+pub use content::IconTextContent;
 pub use source::IconSource;
+pub use text_button::IconTextButton;
 
 /// Stateful Adwaita icon button backed by [`Button`].
 #[derive(Debug)]
@@ -219,7 +220,7 @@ impl IconButton {
     {
         let snapshot = self.button.snapshot(cx)?;
         let color = snapshot.style.foreground.color();
-        let icon = self.icon_element(self.resolved_icon_size(cx), color);
+        let icon = content::icon_element(&self.icon, self.resolved_icon_size(cx), color);
 
         Ok(self.button.try_view(cx)?.content(icon))
     }
@@ -250,20 +251,6 @@ impl IconButton {
     fn resolved_icon_size(&self, cx: &ViewCx<'_>) -> f32 {
         self.icon_size
             .unwrap_or_else(|| cx.theme().pack().button.icon_size.value())
-    }
-
-    fn icon_element<'a, Message>(&'a self, size: f32, color: iced::Color) -> Element<'a, Message>
-    where
-        Message: 'a,
-    {
-        match &self.icon {
-            IconSource::Svg(handle) => svg(handle.clone())
-                .width(Length::Fixed(size))
-                .height(Length::Fixed(size))
-                .style(move |_theme: &iced::Theme, _status| svg::Style { color: Some(color) })
-                .into(),
-            IconSource::Text(icon) => text(icon).size(size).color(color).into(),
-        }
     }
 }
 

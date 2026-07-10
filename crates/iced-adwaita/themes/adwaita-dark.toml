@@ -28,6 +28,7 @@ image_min_width = "24px"
 image_padding_x = "5px"
 image_text_padding_x = "9px"
 image_text_spacing = "4px"
+image_text_label_padding_x = "2px"
 icon_size = "16px"
 
 [button.shape.rounded]

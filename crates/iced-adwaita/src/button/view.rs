@@ -1,7 +1,9 @@
 //! Iced view builder for Adwaita buttons.
 
 use iced::{
-    Background, Border, Element, Length, Padding, Shadow, alignment, mouse,
+    Background, Border, Element, Font, Length, Padding, Shadow, alignment,
+    font::Weight,
+    mouse,
     widget::{container, mouse_area, text},
 };
 use spectrum_theme::iced::IcedColorAdapter;
@@ -117,7 +119,12 @@ fn button_content<'a, Message>(button: &'a Button) -> Element<'a, Message>
 where
     Message: 'a,
 {
-    text(button.content().as_text().unwrap_or_default()).into()
+    text(button.content().as_text().unwrap_or_default())
+        .font(Font {
+            weight: Weight::Bold,
+            ..Font::DEFAULT
+        })
+        .into()
 }
 
 impl<'a, Message, Action> From<ButtonView<'a, Message, Action>> for Element<'a, Message>

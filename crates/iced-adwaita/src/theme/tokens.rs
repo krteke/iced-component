@@ -48,7 +48,9 @@ define_theme_tokens! {
             image_padding_x: Length,
             image_text_padding_x: Length,
             image_text_spacing: Length,
+            image_text_label_padding_x: Length,
             icon_size: Length,
+
             shape {
                 rounded { radius: Radius }
                 pill { radius: Radius }

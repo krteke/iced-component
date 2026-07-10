@@ -9,7 +9,10 @@ use iced::{
 };
 use iced_adwaita::{
     Context,
-    button::{Button, ButtonEvent, ButtonSignal, ButtonSync, icon::IconButton},
+    button::{
+        Button, ButtonEvent, ButtonSignal, ButtonSync,
+        icon::{IconButton, IconTextButton},
+    },
     context::{ThemeMode, UpdateCx, ViewCx},
 };
 use iced_component_core::anim::MotionRuntime;
@@ -60,6 +63,7 @@ enum Message {
     Frame(Instant),
     Save(ButtonEvent<SaveAction>),
     Icon(ButtonEvent<IconAction>),
+    IconText(ButtonEvent<IconTextAction>),
     Passive(PassiveButton, ButtonEvent<()>),
     Theme(ButtonEvent<ThemeAction>),
     ReduceMotion(ButtonEvent<ReduceMotionAction>),
@@ -73,6 +77,11 @@ enum SaveAction {
 #[derive(Debug, Clone, Copy)]
 enum IconAction {
     Press,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum IconTextAction {
+    Open,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -100,6 +109,7 @@ struct Demo {
     clicks: usize,
     save: Button,
     icon: IconButton,
+    icon_text: IconTextButton,
     suggested: Button,
     destructive: Button,
     flat: Button,
@@ -118,6 +128,7 @@ impl Default for Demo {
             clicks: 0,
             save: Button::new("Save"),
             icon: IconButton::svg_static(SEARCH_ICON).flat(),
+            icon_text: IconTextButton::svg_static(OPEN_ICON, "Open"),
             suggested: Button::suggested("Suggested"),
             destructive: Button::destructive("Destructive"),
             flat: Button::new("Flat").flat(),
@@ -138,6 +149,7 @@ impl Default for Demo {
                 [
                     demo.save,
                     demo.icon,
+                    demo.icon_text,
                     demo.suggested,
                     demo.destructive,
                     demo.flat,
@@ -162,6 +174,7 @@ impl Demo {
             }
             Message::Save(event) => self.save_event(event),
             Message::Icon(event) => self.icon_event(event),
+            Message::IconText(event) => self.icon_text_event(event),
             Message::Passive(button, event) => self.passive_event(button, event),
             Message::Theme(event) => self.theme_event(event),
             Message::ReduceMotion(event) => self.reduce_motion_event(event),
@@ -186,6 +199,12 @@ impl Demo {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
         let _ = self.icon.update_event(event, &mut cx);
+    }
+
+    fn icon_text_event(&mut self, event: ButtonEvent<IconTextAction>) {
+        let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
+
+        let _ = self.icon_text.update_event(event, &mut cx);
     }
 
     fn passive_event(&mut self, button: PassiveButton, event: ButtonEvent<()>) {
@@ -227,6 +246,7 @@ impl Demo {
                 [
                     self.save,
                     self.icon,
+                    self.icon_text,
                     self.suggested,
                     self.destructive,
                     self.flat,
@@ -274,6 +294,9 @@ impl Demo {
                 self.icon
                     .view(&view)
                     .connect(IconAction::Press, Message::Icon),
+                self.icon_text
+                    .view(&view)
+                    .connect(IconTextAction::Open, Message::IconText),
                 self.suggested
                     .view(&view)
                     .connect((), |event| Message::Passive(
@@ -332,5 +355,11 @@ impl Demo {
 const SEARCH_ICON: &[u8] = br#"
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
   <path fill="currentColor" d="M7 2a5 5 0 0 1 3.9 8.13l2.49 2.48-.78.78-2.48-2.49A5 5 0 1 1 7 2Zm0 1.1a3.9 3.9 0 1 0 0 7.8 3.9 3.9 0 0 0 0-7.8Z"/>
+</svg>
+"#;
+
+const OPEN_ICON: &[u8] = br#"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <path fill="currentColor" d="M2 2.5A1.5 1.5 0 0 1 3.5 1h3.2l1.45 1.75h4.35A1.5 1.5 0 0 1 14 4.25v7.25A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5Zm1.1 2.35v6.65c0 .22.18.4.4.4h9a.4.4 0 0 0 .4-.4V4.25a.4.4 0 0 0-.4-.4H7.64L6.2 2.1H3.5a.4.4 0 0 0-.4.4Z"/>
 </svg>
 "#;
