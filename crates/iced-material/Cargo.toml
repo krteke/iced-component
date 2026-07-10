@@ -8,6 +8,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+aura-anim.workspace = true
+iced.workspace = true
 iced-component-core.workspace = true
 spectrum-theme = { workspace = true, features = ["macros", "toml", "iced"] }
 thiserror.workspace = true

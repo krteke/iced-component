@@ -6,6 +6,7 @@ members = [
     "crates/iced-material",
 ]
 resolver = "3"
+exclude = ["reference"]
 
 [workspace.package]
 version = "0.1.0"

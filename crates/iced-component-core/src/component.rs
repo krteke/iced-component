@@ -3,6 +3,9 @@
 mod context;
 mod macros;
 
+/// Theme-independent button interaction protocol and state.
+pub mod button;
+
 use aura_anim::{
     core::{runtime::PlaybackId, traits::Animatable},
     prelude::{Animation, Motion, MotionError, MotionRuntime, Timing, tween_to},

@@ -1,6 +1,7 @@
+use aura_anim::prelude::Timing;
 use iced_component_core::component::button::ButtonInteractionState;
 
-use crate::button::ButtonStyleState;
+use super::ButtonStyleState;
 
 pub(crate) trait ButtonStateExt {
     fn style_state(self) -> ButtonStyleState;
@@ -13,25 +14,19 @@ impl ButtonStateExt for ButtonInteractionState {
         } else if self.is_pressed() {
             ButtonStyleState::Pressed
         } else if self.is_hovered() {
-            ButtonStyleState::Hovered
+            ButtonStyleState::Hover
+        } else if self.is_focused() {
+            ButtonStyleState::Focus
         } else {
             ButtonStyleState::Idle
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use iced_component_core::component::button::{ButtonInteractionState, ButtonSignal};
+pub(crate) fn interaction_timing() -> Timing {
+    Timing::linear(15.0)
+}
 
-    use super::ButtonStateExt;
-
-    #[test]
-    fn focus_does_not_change_the_adwaita_style_state() {
-        let mut state = ButtonInteractionState::new();
-
-        state.apply(ButtonSignal::Focus);
-
-        assert_eq!(state.style_state(), crate::button::ButtonStyleState::Idle);
-    }
+pub(crate) fn sync_timing() -> Timing {
+    Timing::ease_out(200.0)
 }

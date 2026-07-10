@@ -13,7 +13,7 @@ mod view;
 use iced::Length;
 use iced_component_core::{
     anim::{MotionError, MotionRuntime},
-    component::MotionSlot,
+    component::{MotionSlot, button::ButtonInteractionState},
 };
 use spectrum_theme::Color;
 
@@ -21,22 +21,14 @@ use crate::context::{Context, UpdateCx, ViewCx};
 
 pub use animation::{ButtonAnimationBuilder, ButtonAnimations, adwaita_button_timing};
 pub use content::{ButtonContent, ButtonContentLayout};
+pub use iced_component_core::component::button::{ButtonEvent, ButtonSignal, ButtonSync};
 pub use motion::{ButtonMotion, ButtonMotionTransition};
-pub use state::{ButtonSignal, ButtonSync};
+use state::ButtonStateExt as _;
 pub use style::{
     ButtonResolvedStyle, ButtonRole, ButtonShape, ButtonSnapshot, ButtonStyleOverride,
     ButtonStyleState, ButtonTreatment, ButtonVariant,
 };
 pub use view::ButtonView;
-
-/// Component-level button event.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ButtonEvent<Action> {
-    /// Component signal that changes visual state or synchronizes style.
-    Signal(ButtonSignal),
-    /// A completed press action.
-    Pressed(Action),
-}
 
 /// Stateful Adwaita button core without Iced content rendering.
 #[derive(Debug)]
@@ -45,7 +37,7 @@ pub struct Button {
     variant: ButtonVariant,
     style_override: ButtonStyleOverride,
     layout: ButtonLayout,
-    state: state::ButtonState,
+    state: ButtonInteractionState,
     motion: MotionSlot<ButtonMotion>,
 }
 
@@ -73,7 +65,7 @@ impl Button {
             variant: ButtonVariant::STANDARD,
             style_override: ButtonStyleOverride::default(),
             layout: ButtonLayout::default(),
-            state: state::ButtonState::default(),
+            state: ButtonInteractionState::default(),
             motion: MotionSlot::new(),
         }
     }
@@ -444,7 +436,7 @@ impl Button {
 
     /// Returns the current style state.
     #[must_use]
-    pub const fn style_state(&self) -> ButtonStyleState {
+    pub fn style_state(&self) -> ButtonStyleState {
         self.state.style_state()
     }
 
@@ -513,7 +505,7 @@ impl Button {
         )
     }
 
-    fn motion_from_state(&self, context: &Context, state: state::ButtonState) -> ButtonMotion {
+    fn motion_from_state(&self, context: &Context, state: ButtonInteractionState) -> ButtonMotion {
         ButtonMotion::from_theme(
             context.theme().pack(),
             self.variant,
@@ -525,7 +517,7 @@ impl Button {
 
     fn animate_from_state(
         &mut self,
-        previous: state::ButtonState,
+        previous: ButtonInteractionState,
         signal: ButtonSignal,
         cx: &mut UpdateCx<'_>,
     ) -> Result<bool, MotionError> {
@@ -623,8 +615,8 @@ fn button_event_name<Action>(event: &ButtonEvent<Action>) -> &'static str {
 #[cfg(feature = "tracing")]
 fn trace_button_state_change(
     action: &'static str,
-    previous: state::ButtonState,
-    current: state::ButtonState,
+    previous: ButtonInteractionState,
+    current: ButtonInteractionState,
     signal: ButtonSignal,
     changed: bool,
 ) {
@@ -642,8 +634,8 @@ fn trace_button_state_change(
 #[cfg(not(feature = "tracing"))]
 fn trace_button_state_change(
     _action: &'static str,
-    _previous: state::ButtonState,
-    _current: state::ButtonState,
+    _previous: ButtonInteractionState,
+    _current: ButtonInteractionState,
     _signal: ButtonSignal,
     _changed: bool,
 ) {

@@ -1358,6 +1358,8 @@ dependencies = [
 name = "iced-material"
 version = "0.1.0"
 dependencies = [
+ "aura-anim",
+ "iced",
  "iced-component-core",
  "serde",
  "spectrum-theme",
