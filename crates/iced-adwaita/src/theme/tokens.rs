@@ -41,8 +41,14 @@ define_theme_tokens! {
         button {
             min_width: Length,
             min_height: Length,
+            base_padding_x: Length,
             padding_x: Length,
             padding_y: Length,
+            image_min_width: Length,
+            image_padding_x: Length,
+            image_text_padding_x: Length,
+            image_text_spacing: Length,
+            icon_size: Length,
             shape {
                 rounded { radius: Radius }
                 pill { radius: Radius }

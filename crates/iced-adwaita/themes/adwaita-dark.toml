@@ -21,8 +21,14 @@ color = "#99c1f1"
 [button]
 min_width = "16px"
 min_height = "24px"
+base_padding_x = "10px"
 padding_x = "17px"
 padding_y = "5px"
+image_min_width = "24px"
+image_padding_x = "5px"
+image_text_padding_x = "9px"
+image_text_spacing = "4px"
+icon_size = "16px"
 
 [button.shape.rounded]
 radius = "9px"

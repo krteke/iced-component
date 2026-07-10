@@ -13,7 +13,7 @@ use super::{Button, ButtonEvent, ButtonResolvedStyle, ButtonSignal, ButtonSnapsh
 /// Iced view builder for [`Button`].
 pub struct ButtonView<'a, Message, Action = ()> {
     snapshot: ButtonSnapshot,
-    label: String,
+    content: Element<'a, Message>,
     layout: ResolvedButtonLayout,
     events: ButtonViewEvents<'a, Message, Action>,
 }
@@ -53,7 +53,7 @@ impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
 impl Button {
     /// Builds an Iced view for this button.
     #[must_use]
-    pub fn view<'a, Message>(&self, cx: &ViewCx<'_>) -> ButtonView<'a, Message>
+    pub fn view<'a, Message>(&'a self, cx: &ViewCx<'_>) -> ButtonView<'a, Message>
     where
         Message: Clone + 'a,
     {
@@ -63,7 +63,7 @@ impl Button {
 
     /// Tries to build an Iced view for this button.
     pub fn try_view<'a, Message>(
-        &self,
+        &'a self,
         cx: &ViewCx<'_>,
     ) -> Result<ButtonView<'a, Message>, iced_component_core::anim::MotionError>
     where
@@ -74,7 +74,7 @@ impl Button {
 
         Ok(ButtonView {
             snapshot: self.snapshot(cx)?,
-            label: self.content().as_text().unwrap_or_default().to_owned(),
+            content: button_content(self),
             layout: ResolvedButtonLayout {
                 width,
                 height,
@@ -90,6 +90,13 @@ impl<'a, Message, Action> ButtonView<'a, Message, Action>
 where
     Message: 'a,
 {
+    /// Replaces the rendered button content for this view.
+    #[must_use]
+    pub fn content(mut self, content: impl Into<Element<'a, Message>>) -> Self {
+        self.content = content.into();
+        self
+    }
+
     /// Sets the release action and maps button events into application messages.
     #[must_use]
     pub fn connect<NextAction>(
@@ -99,11 +106,18 @@ where
     ) -> ButtonView<'a, Message, NextAction> {
         ButtonView {
             snapshot: self.snapshot,
-            label: self.label,
+            content: self.content,
             layout: self.layout,
             events: ButtonViewEvents::<Message, Action>::connected(action, mapper),
         }
     }
+}
+
+fn button_content<'a, Message>(button: &'a Button) -> Element<'a, Message>
+where
+    Message: 'a,
+{
+    text(button.content().as_text().unwrap_or_default()).into()
 }
 
 impl<'a, Message, Action> From<ButtonView<'a, Message, Action>> for Element<'a, Message>
@@ -114,7 +128,7 @@ where
     fn from(view: ButtonView<'a, Message, Action>) -> Self {
         let style = ButtonResolvedStyle::from_tokens(view.snapshot.motion.tokens);
 
-        let mut surface = container(text(view.label))
+        let mut surface = container(view.content)
             .padding(Padding {
                 top: view.layout.padding_y,
                 bottom: view.layout.padding_y,
@@ -170,7 +184,7 @@ fn container_style_from_resolved(style: ButtonResolvedStyle) -> container::Style
 
 #[cfg(test)]
 mod tests {
-    use iced::Element;
+    use iced::{Element, widget::text};
     use iced_component_core::anim::MotionRuntime;
 
     use crate::{
@@ -194,7 +208,7 @@ mod tests {
         let cx = ViewCx::new(&runtime, &context);
         let button = Button::suggested("Save");
 
-        let _element: Element<'static, Message> =
+        let _element: Element<'_, Message> =
             button.view(&cx).connect(Action::Save, |_| Message).into();
     }
 
@@ -237,6 +251,20 @@ mod tests {
         let cx = ViewCx::new(&runtime, &context);
         let button = Button::new("Static");
 
-        let _element: Element<'static, Message> = button.view(&cx).into();
+        let _element: Element<'_, Message> = button.view(&cx).into();
+    }
+
+    #[test]
+    fn button_view_accepts_custom_content_element() {
+        #[derive(Clone)]
+        enum Message {}
+
+        let runtime = MotionRuntime::new();
+        let context = Context::light();
+        let cx = ViewCx::new(&runtime, &context);
+        let button = Button::empty();
+
+        let _element: Element<'_, Message> =
+            button.view(&cx).content(text("Custom content")).into();
     }
 }

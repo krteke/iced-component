@@ -9,7 +9,7 @@ use crate::{
     context::{UpdateCx, ViewCx},
 };
 
-use super::{Button, ButtonSignal, ButtonStyleState, ButtonSync};
+use super::{Button, ButtonContentLayout, ButtonSignal, ButtonStyleState, ButtonSync};
 
 #[test]
 fn unregistered_snapshot_resolves_current_theme() {
@@ -260,6 +260,32 @@ fn circular_shape_uses_libadwaita_button_size() {
     assert_eq!(height, Some(Length::Fixed(34.0)));
     assert_approx_eq!(f32, padding_x, 0.0);
     assert_approx_eq!(f32, padding_y, 0.0);
+}
+
+#[test]
+fn plain_content_layout_uses_libadwaita_base_button_padding() {
+    let context = Context::light();
+    let button = Button::empty();
+
+    let (width, height, padding_x, padding_y) = button.resolved_layout(context.theme().pack());
+
+    assert_eq!(width, None);
+    assert_eq!(height, Some(Length::Fixed(34.0)));
+    assert_approx_eq!(f32, padding_x, 10.0);
+    assert_approx_eq!(f32, padding_y, 5.0);
+}
+
+#[test]
+fn image_text_layout_uses_libadwaita_button_content_padding() {
+    let context = Context::light();
+    let button = Button::empty().with_content_layout(ButtonContentLayout::ImageText);
+
+    let (width, height, padding_x, padding_y) = button.resolved_layout(context.theme().pack());
+
+    assert_eq!(width, None);
+    assert_eq!(height, Some(Length::Fixed(34.0)));
+    assert_approx_eq!(f32, padding_x, 9.0);
+    assert_approx_eq!(f32, padding_y, 5.0);
 }
 
 #[test]

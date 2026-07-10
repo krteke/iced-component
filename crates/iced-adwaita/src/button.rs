@@ -2,6 +2,7 @@
 
 mod animation;
 mod content;
+pub mod icon;
 mod motion;
 mod state;
 mod style;
@@ -19,7 +20,7 @@ use spectrum_theme::Color;
 use crate::context::{Context, UpdateCx, ViewCx};
 
 pub use animation::{ButtonAnimationBuilder, ButtonAnimations, adwaita_button_timing};
-pub use content::ButtonContent;
+pub use content::{ButtonContent, ButtonContentLayout};
 pub use motion::{ButtonMotion, ButtonMotionTransition};
 pub use state::{ButtonSignal, ButtonSync};
 pub use style::{
@@ -51,6 +52,8 @@ pub struct Button {
 /// Stable layout inputs for an Adwaita button.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonLayout {
+    /// Content-specific layout class override.
+    pub content: Option<ButtonContentLayout>,
     /// Explicit width override.
     pub width: Option<Length>,
     /// Explicit height override.
@@ -103,6 +106,23 @@ impl Button {
     /// Replaces this button's stored content.
     pub fn set_content(&mut self, content: impl Into<ButtonContent>) {
         self.content = content.into();
+    }
+
+    /// Returns this button with an explicit content layout class.
+    #[must_use]
+    pub const fn with_content_layout(mut self, content: ButtonContentLayout) -> Self {
+        self.layout.content = Some(content);
+        self
+    }
+
+    /// Replaces this button's content layout class.
+    pub fn set_content_layout(&mut self, content: ButtonContentLayout) {
+        self.layout.content = Some(content);
+    }
+
+    /// Clears the content layout override.
+    pub fn clear_content_layout(&mut self) {
+        self.layout.content = None;
     }
 
     /// Returns this button with a different style variant.
@@ -396,6 +416,14 @@ impl Button {
         self.layout
     }
 
+    /// Returns the resolved Adwaita content layout class.
+    #[must_use]
+    pub fn content_layout(&self) -> ButtonContentLayout {
+        self.layout
+            .content
+            .unwrap_or_else(|| self.content.default_layout())
+    }
+
     /// Returns whether this button has registered its motion slot.
     #[must_use]
     pub fn is_registered(&self) -> bool {
@@ -436,17 +464,38 @@ impl Button {
         &self,
         theme: &crate::theme::ThemePack,
     ) -> (Option<Length>, Option<Length>, f32, f32) {
-        let default_padding_x = theme.button.padding_x.value();
         let default_padding_y = theme.button.padding_y.value();
-        let default_text_height = theme.button.min_height.value() + default_padding_y * 2.0;
+        let default_height = theme.button.min_height.value() + default_padding_y * 2.0;
+        let image_width =
+            theme.button.image_min_width.value() + theme.button.image_padding_x.value() * 2.0;
 
         let (width, height, padding_x, padding_y) = match self.variant.shape {
-            ButtonShape::Rounded => (
-                None,
-                Some(Length::Fixed(default_text_height)),
-                default_padding_x,
-                default_padding_y,
-            ),
+            ButtonShape::Rounded => match self.content_layout() {
+                ButtonContentLayout::Plain => (
+                    None,
+                    Some(Length::Fixed(default_height)),
+                    theme.button.base_padding_x.value(),
+                    default_padding_y,
+                ),
+                ButtonContentLayout::Text => (
+                    None,
+                    Some(Length::Fixed(default_height)),
+                    theme.button.padding_x.value(),
+                    default_padding_y,
+                ),
+                ButtonContentLayout::Image => (
+                    Some(Length::Fixed(image_width)),
+                    Some(Length::Fixed(default_height)),
+                    theme.button.image_padding_x.value(),
+                    default_padding_y,
+                ),
+                ButtonContentLayout::ImageText => (
+                    None,
+                    Some(Length::Fixed(default_height)),
+                    theme.button.image_text_padding_x.value(),
+                    default_padding_y,
+                ),
+            },
             ButtonShape::Pill => (None, None, 32.0, 10.0),
             ButtonShape::Circular => (
                 Some(Length::Fixed(34.0)),
