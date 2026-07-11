@@ -23,6 +23,12 @@ pub(crate) struct PressRippleState {
 }
 
 impl PressRippleState {
+    /// Removes every active or exiting ripple.
+    pub(crate) fn clear(&mut self) {
+        self.active_ripple = None;
+        self.exiting_ripples.clear();
+    }
+
     /// Starts a ripple at a point relative to the button's bounds.
     pub(crate) fn press(&mut self, origin: Point, now: Instant) {
         if let Some(mut ripple) = self.active_ripple.take() {
@@ -243,6 +249,21 @@ mod tests {
     use iced_widget::core::time::{Duration, Instant};
 
     use super::PressRippleState;
+
+    #[test]
+    fn clear_removes_an_active_ripple() {
+        let now = Instant::now();
+        let mut ripples = PressRippleState::default();
+        ripples.press(Point::new(8.0, 6.0), now);
+
+        let visible_at = now + Duration::from_millis(100);
+        assert!(ripples.has_visible_ripples(visible_at));
+
+        ripples.clear();
+
+        assert!(!ripples.has_visible_ripples(visible_at));
+        assert_eq!(ripples.visible(visible_at).count(), 0);
+    }
 
     #[test]
     fn released_ripple_holds_until_the_patterned_entry_completes() {

@@ -17,6 +17,7 @@ pub struct ButtonView<'a, Message> {
     snapshot: ButtonSnapshot,
     content: Element<'a, Message>,
     layout: ButtonLayout,
+    ripple_enabled: bool,
     events: ButtonViewEvents<'a, Message>,
 }
 
@@ -65,6 +66,7 @@ impl Button {
                 leading_padding: tokens.leading_padding.value(),
                 trailing_padding: tokens.trailing_padding.value(),
             },
+            ripple_enabled: !cx.reduce_motion(),
             events: ButtonViewEvents::new(),
         })
     }
@@ -98,6 +100,7 @@ where
             snapshot,
             content,
             layout,
+            ripple_enabled,
             events,
         } = view;
         let events = if snapshot.disabled {
@@ -110,7 +113,7 @@ where
             .align_y(alignment::Vertical::Center)
             .into();
 
-        MaterialButtonWidget::new(snapshot, layout, content, events).into()
+        MaterialButtonWidget::new(snapshot, layout, content, events, ripple_enabled).into()
     }
 }
 
@@ -121,7 +124,7 @@ mod tests {
 
     use crate::{
         button::{Button, ButtonEvent},
-        context::{Context, ViewCx},
+        context::{Context, UpdateCx, ViewCx},
     };
 
     #[test]
@@ -151,5 +154,18 @@ mod tests {
         let button = Button::outlined().disabled(true);
 
         let _: Element<'_, Message> = button.view(&cx).content(text("Disabled")).into();
+    }
+
+    #[test]
+    fn reduced_motion_disables_the_widget_ripple() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = Context::light();
+        UpdateCx::new(&mut runtime, &mut context).set_reduce_motion(true);
+        let cx = ViewCx::new(&runtime, &context);
+        let button = Button::filled();
+
+        let view = button.view::<ButtonEvent>(&cx);
+
+        assert!(!view.ripple_enabled);
     }
 }

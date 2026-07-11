@@ -55,6 +55,7 @@ where
     layout: ButtonLayout,
     content: Element<'a, Message, iced::Theme, Renderer>,
     events: Option<ButtonEvents<'a, Message>>,
+    ripple_enabled: bool,
 }
 
 impl<'a, Message, Renderer> MaterialButtonWidget<'a, Message, Renderer>
@@ -66,12 +67,14 @@ where
         layout: ButtonLayout,
         content: Element<'a, Message, iced::Theme, Renderer>,
         events: Option<ButtonEvents<'a, Message>>,
+        ripple_enabled: bool,
     ) -> Self {
         Self {
             snapshot,
             layout,
             content,
             events,
+            ripple_enabled,
         }
     }
 }
@@ -85,16 +88,25 @@ struct ButtonWidgetState {
 }
 
 impl ButtonWidgetState {
-    fn press(&mut self, origin: Point, now: Instant) {
+    fn press(&mut self, origin: Point, now: Instant, ripple_enabled: bool) {
         self.pressed = true;
-        self.ripples.press(origin, now);
-        self.now = Some(now);
+        if ripple_enabled {
+            self.ripples.press(origin, now);
+            self.now = Some(now);
+        }
     }
 
-    fn release(&mut self, now: Instant) {
+    fn release(&mut self, now: Instant, ripple_enabled: bool) {
         self.pressed = false;
-        self.ripples.release(now);
-        self.now = Some(now);
+        if ripple_enabled {
+            self.ripples.release(now);
+            self.now = Some(now);
+        }
+    }
+
+    fn clear_ripples(&mut self) {
+        self.ripples.clear();
+        self.now = None;
     }
 
     fn advance(&mut self, now: Instant) -> bool {
@@ -195,6 +207,10 @@ where
             shell,
             viewport,
         );
+        let state = tree.state.downcast_mut::<ButtonWidgetState>();
+        if !self.ripple_enabled {
+            state.clear_ripples();
+        }
         if shell.is_event_captured() || self.snapshot.disabled {
             return;
         }
@@ -203,7 +219,6 @@ where
             return;
         };
         let bounds = layout.bounds();
-        let state = tree.state.downcast_mut::<ButtonWidgetState>();
         let redraw_time = match event {
             Event::Window(window::Event::RedrawRequested(now)) => Some(*now),
             _ => None,
@@ -216,7 +231,7 @@ where
                 let Some(position) = cursor.position_in(bounds) else {
                     return;
                 };
-                state.press(position, now_or_current());
+                state.press(position, now_or_current(), self.ripple_enabled);
                 shell.publish(events.signal(ButtonSignal::PressDownAt(
                     iced_component_core::component::button::PointerPosition::new(
                         position.x, position.y,
@@ -231,6 +246,7 @@ where
                 state.press(
                     Point::new(position.x - bounds.x, position.y - bounds.y),
                     now_or_current(),
+                    self.ripple_enabled,
                 );
                 shell.publish(events.signal(ButtonSignal::PressDownAt(
                     iced_component_core::component::button::PointerPosition::new(
@@ -242,7 +258,7 @@ where
                 shell.request_redraw();
             }
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.pressed => {
-                state.release(now_or_current());
+                state.release(now_or_current(), self.ripple_enabled);
                 let message = if cursor.is_over(bounds) {
                     events.release()
                 } else {
@@ -253,7 +269,7 @@ where
                 shell.request_redraw();
             }
             Event::Touch(touch::Event::FingerLifted { position, .. }) if state.pressed => {
-                state.release(now_or_current());
+                state.release(now_or_current(), self.ripple_enabled);
                 let message = if bounds.contains(*position) {
                     events.release()
                 } else {
@@ -264,7 +280,7 @@ where
                 shell.request_redraw();
             }
             Event::Touch(touch::Event::FingerLost { .. }) if state.pressed => {
-                state.release(now_or_current());
+                state.release(now_or_current(), self.ripple_enabled);
                 shell.publish(events.signal(ButtonSignal::PressUp));
                 shell.capture_event();
                 shell.request_redraw();
@@ -272,7 +288,8 @@ where
             _ => {}
         }
 
-        if let Some(now) = redraw_time
+        if self.ripple_enabled
+            && let Some(now) = redraw_time
             && state.advance(now)
         {
             shell.request_redraw();
@@ -342,15 +359,17 @@ where
                 )),
             );
         }
-        let state = tree.state.downcast_ref::<ButtonWidgetState>();
-        ripple::draw(
-            renderer,
-            bounds,
-            &state.ripples,
-            color_with_opacity(self.snapshot.ripple_color, self.snapshot.ripple_opacity),
-            visual.radius,
-            state.now.unwrap_or_else(Instant::now),
-        );
+        if self.ripple_enabled {
+            let state = tree.state.downcast_ref::<ButtonWidgetState>();
+            ripple::draw(
+                renderer,
+                bounds,
+                &state.ripples,
+                color_with_opacity(self.snapshot.ripple_color, self.snapshot.ripple_opacity),
+                visual.radius,
+                state.now.unwrap_or_else(Instant::now),
+            );
+        }
     }
 
     fn mouse_interaction(
@@ -472,6 +491,7 @@ mod tests {
             },
             text("Save").into(),
             Some(events),
+            true,
         )
         .into();
     }
