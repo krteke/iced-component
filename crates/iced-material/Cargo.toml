@@ -11,6 +11,7 @@ repository.workspace = true
 aura-anim.workspace = true
 iced.workspace = true
 iced-component-core.workspace = true
+iced_widget = { version = "0.14.2", features = ["canvas", "wgpu"] }
 spectrum-theme = { workspace = true, features = ["macros", "toml", "iced"] }
 thiserror.workspace = true
 tracing = { workspace = true, optional = true }

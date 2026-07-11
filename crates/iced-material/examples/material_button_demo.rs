@@ -39,8 +39,8 @@ fn theme(demo: &Demo) -> Theme {
 #[derive(Clone, Copy, Debug)]
 enum Message {
     Frame(Instant),
-    Variant(ButtonVariant, ButtonEvent<()>),
-    ToggleTheme(ButtonEvent<()>),
+    Variant(ButtonVariant, ButtonEvent),
+    ToggleTheme(ButtonEvent),
 }
 
 struct Demo {
@@ -98,7 +98,7 @@ impl Demo {
         Task::none()
     }
 
-    fn update_variant(&mut self, variant: ButtonVariant, event: ButtonEvent<()>) {
+    fn update_variant(&mut self, variant: ButtonVariant, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
         let result = match variant {
@@ -111,11 +111,14 @@ impl Demo {
         let _ = result;
     }
 
-    fn toggle_theme(&mut self, event: ButtonEvent<()>) {
+    fn toggle_theme(&mut self, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
-        let Ok(Some(())) = self.theme_button.update_event(event, &mut cx) else {
+        let Ok(outcome) = self.theme_button.update_event(event, &mut cx) else {
             return;
         };
+        if !outcome.is_activated() {
+            return;
+        }
         let signal = ButtonSignal::Sync(ButtonSync::StyleChanged(cx.toggle_theme()));
         let _ = iced_component_core::update_components!(
             cx,
@@ -155,29 +158,26 @@ impl Demo {
             self.elevated
                 .view(&cx)
                 .content(button_label("Elevated"))
-                .connect((), |event| Message::Variant(ButtonVariant::Elevated, event)),
+                .on_event(|event| Message::Variant(ButtonVariant::Elevated, event)),
             self.filled
                 .view(&cx)
                 .content(button_label("Filled"))
-                .connect((), |event| Message::Variant(ButtonVariant::Filled, event)),
+                .on_event(|event| Message::Variant(ButtonVariant::Filled, event)),
             self.filled_tonal
                 .view(&cx)
                 .content(button_label("Filled tonal"))
-                .connect((), |event| Message::Variant(
-                    ButtonVariant::FilledTonal,
-                    event
-                )),
+                .on_event(|event| Message::Variant(ButtonVariant::FilledTonal, event)),
         ]
         .spacing(12);
         let secondary_row = row![
             self.outlined
                 .view(&cx)
                 .content(button_label("Outlined"))
-                .connect((), |event| Message::Variant(ButtonVariant::Outlined, event)),
+                .on_event(|event| Message::Variant(ButtonVariant::Outlined, event)),
             self.text
                 .view(&cx)
                 .content(button_label("Text"))
-                .connect((), |event| Message::Variant(ButtonVariant::Text, event)),
+                .on_event(|event| Message::Variant(ButtonVariant::Text, event)),
             self.disabled.view(&cx).content(button_label("Disabled")),
         ]
         .spacing(12);
@@ -189,7 +189,7 @@ impl Demo {
             .theme_button
             .view(&cx)
             .content(button_label(scheme))
-            .connect((), Message::ToggleTheme);
+            .on_event(Message::ToggleTheme);
         let content = column![
             text("Material 3 Button")
                 .size(24)

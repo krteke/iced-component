@@ -67,6 +67,20 @@ fn registered_interaction_animates_the_state_layer() {
 }
 
 #[test]
+fn registering_a_button_allocates_only_its_theme_visual_motion() {
+    let mut runtime = MotionRuntime::new();
+    let mut context = Context::light();
+    let mut button = Button::filled();
+
+    {
+        let mut cx = UpdateCx::new(&mut runtime, &mut context);
+        button.register(&mut cx);
+    }
+
+    assert_eq!(runtime.motion_count(), 1);
+}
+
+#[test]
 fn focus_uses_the_material_focus_state_layer() {
     let mut runtime = MotionRuntime::new();
     let mut context = Context::light();
@@ -86,19 +100,44 @@ fn focus_uses_the_material_focus_state_layer() {
 }
 
 #[test]
-fn disabled_button_does_not_emit_a_pressed_action() {
+fn pressed_state_uses_the_material_press_state_layer() {
+    let mut runtime = MotionRuntime::new();
+    let mut context = Context::light();
+
+    for variant in [
+        ButtonVariant::Elevated,
+        ButtonVariant::Filled,
+        ButtonVariant::FilledTonal,
+        ButtonVariant::Outlined,
+        ButtonVariant::Text,
+    ] {
+        let mut button = Button::with_variant(variant);
+        button
+            .update(
+                ButtonSignal::PressDown,
+                &mut UpdateCx::new(&mut runtime, &mut context),
+            )
+            .unwrap();
+        let snapshot = button.snapshot(&ViewCx::new(&runtime, &context)).unwrap();
+
+        assert!((snapshot.visual.state_layer_opacity - 0.10).abs() < f32::EPSILON);
+    }
+}
+
+#[test]
+fn disabled_button_does_not_activate() {
     let mut runtime = MotionRuntime::new();
     let mut context = Context::light();
     let mut button = Button::text().disabled(true);
 
-    let action = button
+    let outcome = button
         .update_event(
-            ButtonEvent::Pressed("save"),
+            ButtonEvent::Pressed,
             &mut UpdateCx::new(&mut runtime, &mut context),
         )
         .unwrap();
 
-    assert_eq!(action, None);
+    assert_eq!(outcome, super::ButtonOutcome::None);
     assert_eq!(button.style_state(), ButtonStyleState::Disabled);
 }
 

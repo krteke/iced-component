@@ -58,6 +58,10 @@ pub struct ButtonSnapshot {
     pub disabled: bool,
     /// Whether keyboard focus is active.
     pub focused: bool,
+    /// Pressed-state layer color used by the active ripple.
+    pub(crate) ripple_color: spectrum_theme::Color,
+    /// Pressed-state layer opacity used by the active ripple.
+    pub(crate) ripple_opacity: f32,
 }
 
 pub(crate) fn visual_from_theme(

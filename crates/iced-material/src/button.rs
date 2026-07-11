@@ -1,11 +1,13 @@
 //! Stateful Material button primitives without Iced content rendering.
 
 mod motion;
+mod ripple;
 mod state;
 mod style;
 #[cfg(test)]
 mod tests;
 mod view;
+mod widget;
 
 use aura_anim::prelude::{Timing, Tween};
 use iced_component_core::{
@@ -15,7 +17,9 @@ use iced_component_core::{
 
 use crate::context::{Context, UpdateCx, ViewCx};
 
-pub use iced_component_core::component::button::{ButtonEvent, ButtonSignal, ButtonSync};
+pub use iced_component_core::component::button::{
+    ButtonEvent, ButtonOutcome, ButtonSignal, ButtonSync,
+};
 pub use motion::{ButtonMotion, ButtonVisual};
 use state::ButtonStateExt as _;
 pub use style::{ButtonSnapshot, ButtonStyleState, ButtonVariant};
@@ -134,7 +138,12 @@ impl Button {
 
         let previous = self.state;
         self.state.apply(signal);
-        self.animate_from(previous, state::interaction_timing(), cx)
+        let visual_changed = if previous == self.state {
+            Ok(false)
+        } else {
+            self.animate_from(previous, state::interaction_timing(), cx)
+        }?;
+        Ok(visual_changed)
     }
 
     /// Enables or disables this button.
@@ -146,26 +155,26 @@ impl Button {
         self.update(ButtonSignal::SetDisabled(disabled), cx)
     }
 
-    /// Applies an event and returns its application action, if any.
-    pub fn update_event<Action>(
+    /// Applies a rendered event and reports whether it activated the button.
+    pub fn update_event(
         &mut self,
-        event: ButtonEvent<Action>,
+        event: ButtonEvent,
         cx: &mut UpdateCx<'_>,
-    ) -> Result<Option<Action>, MotionError> {
+    ) -> Result<ButtonOutcome, MotionError> {
         let previous = self.state;
         let signal = match &event {
             ButtonEvent::Signal(signal) => *signal,
-            ButtonEvent::Pressed(_) => ButtonSignal::PressUp,
+            ButtonEvent::Pressed => ButtonSignal::PressUp,
         };
-        let action = self.state.apply_event(event);
+        let outcome = self.state.apply_event(event);
 
         if let ButtonSignal::Sync(sync) = signal {
             self.sync_with(sync, cx)?;
-        } else {
+        } else if previous != self.state {
             self.animate_from(previous, state::interaction_timing(), cx)?;
         }
 
-        Ok(action)
+        Ok(outcome)
     }
 
     /// Returns a rendering snapshot without exposing component internals.
@@ -178,12 +187,17 @@ impl Button {
                 .copied()
         }
         .unwrap_or_else(|| self.motion_from_context(cx.context()));
+        let pressed =
+            ButtonMotion::from_theme(cx.theme().pack(), self.variant, ButtonStyleState::Pressed)
+                .visual;
 
         Ok(ButtonSnapshot {
             style_state: self.state.style_state(),
             visual: motion.visual,
             disabled: self.state.is_disabled(),
             focused: self.state.is_focused(),
+            ripple_color: pressed.state_layer,
+            ripple_opacity: pressed.state_layer_opacity,
         })
     }
 

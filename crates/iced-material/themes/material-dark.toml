@@ -114,6 +114,9 @@ shadow_y = "2px"
 shadow_blur = "6px"
 state_layer_opacity = "0.08"
 
+[button.elevated.pressed]
+state_layer_opacity = "0.10"
+
 [button.elevated.focus]
 state_layer_opacity = "0.10"
 
@@ -146,6 +149,9 @@ shadow_y = "1px"
 shadow_blur = "3px"
 state_layer_opacity = "0.08"
 
+[button.filled.pressed]
+state_layer_opacity = "0.10"
+
 [button.filled.focus]
 state_layer_opacity = "0.10"
 
@@ -177,6 +183,9 @@ shadow_y = "1px"
 shadow_blur = "3px"
 state_layer_opacity = "0.08"
 
+[button.filled_tonal.pressed]
+state_layer_opacity = "0.10"
+
 [button.filled_tonal.focus]
 state_layer_opacity = "0.10"
 
@@ -205,6 +214,9 @@ state_layer_opacity = "0"
 [button.outlined.hover]
 state_layer_opacity = "0.08"
 
+[button.outlined.pressed]
+state_layer_opacity = "0.10"
+
 [button.outlined.focus]
 state_layer_opacity = "0.10"
 
@@ -232,6 +244,9 @@ state_layer_opacity = "0"
 
 [button.text.hover]
 state_layer_opacity = "0.08"
+
+[button.text.pressed]
+state_layer_opacity = "0.10"
 
 [button.text.focus]
 state_layer_opacity = "0.10"

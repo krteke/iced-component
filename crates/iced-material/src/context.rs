@@ -1,6 +1,9 @@
 use iced_component_core::{
     anim::MotionRuntime,
-    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, StyleChange, StyleRevision},
+    component::{
+        ComponentContext, ComponentUpdateCx, ComponentViewCx, StyleChange, StyleRevision,
+        animation::AnimationOverrides,
+    },
 };
 use spectrum_theme::{Color, config::TomlThemeSource};
 
@@ -243,6 +246,12 @@ impl Context {
     pub const fn reduce_motion(&self) -> bool {
         self.core.reduce_motion()
     }
+
+    /// Returns sparse application-level component animation overrides.
+    #[must_use]
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.core.animation_overrides()
+    }
 }
 
 impl Default for Context {
@@ -343,6 +352,22 @@ impl<'a> UpdateCx<'a> {
         self.context.reduce_motion()
     }
 
+    /// Returns sparse application-level component animation overrides.
+    #[must_use]
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.context.animation_overrides()
+    }
+
+    /// Installs or replaces one typed component animation override.
+    pub fn set_animation_override<T: 'static>(&mut self, animations: T) {
+        self.context.core.animation_overrides_mut().set(animations);
+    }
+
+    /// Removes one typed component animation override.
+    pub fn remove_animation_override<T: 'static>(&mut self) -> bool {
+        self.context.core.animation_overrides_mut().remove::<T>()
+    }
+
     /// Updates whether non-essential motion should be reduced.
     pub fn set_reduce_motion(&mut self, reduce_motion: bool) {
         self.context.core.set_reduce_motion(reduce_motion);
@@ -401,6 +426,12 @@ impl<'a> ViewCx<'a> {
     #[must_use]
     pub const fn reduce_motion(&self) -> bool {
         self.context.reduce_motion()
+    }
+
+    /// Returns sparse application-level component animation overrides.
+    #[must_use]
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.context.animation_overrides()
     }
 }
 
