@@ -9,18 +9,27 @@ repository.workspace = true
 
 [dependencies]
 iced.workspace = true
-iced-adwaita.workspace = true
 iced-component-core.workspace = true
-iced-material.workspace = true
+iced-adwaita = { workspace = true, optional = true }
+iced-material = { workspace = true, optional = true }
 
 [features]
-default = []
-serde = ["iced-adwaita/serde", "iced-material/serde"]
+default = ["adwaita", "material"]
+adwaita = ["dep:iced-adwaita"]
+material = ["dep:iced-material"]
+serde = ["iced-adwaita?/serde", "iced-material?/serde"]
 tracing = [
-    "iced-adwaita/tracing",
+    "iced-adwaita?/tracing",
     "iced-component-core/tracing",
-    "iced-material/tracing",
+    "iced-material?/tracing",
 ]
+
+[dev-dependencies]
+aura-anim.workspace = true
+
+[[example]]
+name = "adapter_button_demo"
+required-features = ["adwaita", "material"]
 
 [lints]
 workspace = true

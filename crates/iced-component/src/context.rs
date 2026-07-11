@@ -1,8 +1,37 @@
-//! Shared adapter context for selecting a themed component backend.
+//! Runtime context for a selected pair of themed backends.
+
+#[cfg(all(feature = "adwaita", feature = "material"))]
+mod defaults;
+mod scheme;
+#[cfg(all(test, feature = "adwaita", feature = "material"))]
+mod tests;
 
 use iced_component_core::anim::MotionRuntime;
 
-/// The themed component family rendered by an adapter.
+use crate::backend::ThemeBackend;
+
+pub use scheme::ColorScheme;
+
+/// Active side of a generic two-backend adapter.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum BackendSelection {
+    /// Use the first backend type.
+    #[default]
+    First,
+    /// Use the second backend type.
+    Second,
+}
+
+impl BackendSelection {
+    const fn toggled(self) -> Self {
+        match self {
+            Self::First => Self::Second,
+            Self::Second => Self::First,
+        }
+    }
+}
+
+/// Named selection used by the built-in Adwaita + Material adapter.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ThemeFamily {
     /// Render components from `iced-adwaita`.
@@ -12,194 +41,247 @@ pub enum ThemeFamily {
     Material,
 }
 
-impl ThemeFamily {
-    const fn toggled(self) -> Self {
-        match self {
-            Self::Adwaita => Self::Material,
-            Self::Material => Self::Adwaita,
+impl From<ThemeFamily> for BackendSelection {
+    fn from(family: ThemeFamily) -> Self {
+        match family {
+            ThemeFamily::Adwaita => Self::First,
+            ThemeFamily::Material => Self::Second,
         }
     }
 }
 
-/// Theme contexts retained by the adapter.
-///
-/// Both contexts remain alive across a family switch. This preserves runtime
-/// theme edits while the adapter changes the rendered component implementation.
-#[derive(Clone)]
-pub struct Context {
-    family: ThemeFamily,
-    adwaita: iced_adwaita::Context,
-    material: iced_material::context::Context,
+/// Persistent contexts for exactly two selected themed backends.
+pub struct AdapterContext<A, B>
+where
+    A: ThemeBackend,
+    B: ThemeBackend,
+{
+    selection: BackendSelection,
+    first: A::Context,
+    second: B::Context,
 }
 
-impl Context {
-    /// Creates a light context with the selected component family.
+impl<A, B> AdapterContext<A, B>
+where
+    A: ThemeBackend,
+    B: ThemeBackend,
+{
+    /// Creates an adapter from independently configured backend contexts.
     #[must_use]
-    pub fn new(family: ThemeFamily) -> Self {
+    pub fn from_backends(
+        selection: impl Into<BackendSelection>,
+        first: A::Context,
+        second: B::Context,
+    ) -> Self {
         Self {
-            family,
-            adwaita: iced_adwaita::Context::light(),
-            material: iced_material::context::Context::light(),
+            selection: selection.into(),
+            first,
+            second,
         }
     }
 
-    /// Returns the active component family.
+    /// Returns the active backend side.
     #[must_use]
-    pub const fn family(&self) -> ThemeFamily {
-        self.family
+    pub const fn selection(&self) -> BackendSelection {
+        self.selection
     }
 
-    /// Returns the retained Adwaita context.
+    /// Returns the first concrete backend context.
     #[must_use]
-    pub const fn adwaita(&self) -> &iced_adwaita::Context {
-        &self.adwaita
+    pub const fn first(&self) -> &A::Context {
+        &self.first
     }
 
-    /// Returns the retained Material context.
+    /// Returns the second concrete backend context.
     #[must_use]
-    pub const fn material(&self) -> &iced_material::context::Context {
-        &self.material
+    pub const fn second(&self) -> &B::Context {
+        &self.second
     }
 
-    /// Returns the adapter-wide reduced-motion preference.
+    /// Returns the active backend's color scheme.
+    #[must_use]
+    pub fn color_scheme(&self) -> ColorScheme {
+        match self.selection {
+            BackendSelection::First => A::color_scheme(&self.first),
+            BackendSelection::Second => B::color_scheme(&self.second),
+        }
+    }
+
+    /// Returns the active backend's reduced-motion preference.
     #[must_use]
     pub fn reduce_motion(&self) -> bool {
-        debug_assert_eq!(self.adwaita.reduce_motion(), self.material.reduce_motion());
-        self.adwaita.reduce_motion()
+        match self.selection {
+            BackendSelection::First => A::reduce_motion(&self.first),
+            BackendSelection::Second => B::reduce_motion(&self.second),
+        }
     }
 }
 
-impl Default for Context {
-    fn default() -> Self {
-        Self::new(ThemeFamily::default())
+impl<A, B> Clone for AdapterContext<A, B>
+where
+    A: ThemeBackend,
+    B: ThemeBackend,
+    A::Context: Clone,
+    B::Context: Clone,
+{
+    fn clone(&self) -> Self {
+        Self::from_backends(self.selection, self.first.clone(), self.second.clone())
     }
 }
 
-/// Mutable runtime inputs used by adapter components.
-pub struct UpdateCx<'a> {
+/// Mutable runtime inputs for a generic backend pair.
+pub struct AdapterUpdateCx<'a, A, B>
+where
+    A: ThemeBackend,
+    B: ThemeBackend,
+{
     runtime: &'a mut MotionRuntime,
-    context: &'a mut Context,
+    context: &'a mut AdapterContext<A, B>,
 }
 
-impl<'a> UpdateCx<'a> {
+impl<'a, A, B> AdapterUpdateCx<'a, A, B>
+where
+    A: ThemeBackend,
+    B: ThemeBackend,
+{
     /// Creates an adapter update context.
-    pub fn new(runtime: &'a mut MotionRuntime, context: &'a mut Context) -> Self {
+    pub fn new(runtime: &'a mut MotionRuntime, context: &'a mut AdapterContext<A, B>) -> Self {
         Self { runtime, context }
     }
 
-    /// Returns the active component family.
+    /// Returns the active backend side.
     #[must_use]
-    pub const fn family(&self) -> ThemeFamily {
-        self.context.family
+    pub const fn selection(&self) -> BackendSelection {
+        self.context.selection
     }
 
-    /// Selects a component family without starting a cross-theme transition.
-    pub fn set_family(&mut self, family: ThemeFamily) -> bool {
-        let changed = self.context.family != family;
-        self.context.family = family;
+    /// Returns the adapter context.
+    #[must_use]
+    pub const fn context(&self) -> &AdapterContext<A, B> {
+        self.context
+    }
+
+    /// Selects a backend without starting a cross-theme transition.
+    pub fn set_selection(&mut self, selection: BackendSelection) -> bool {
+        let changed = self.context.selection != selection;
+        self.context.selection = selection;
         changed
     }
 
-    /// Selects the other component family without a transition.
-    pub fn toggle_family(&mut self) -> ThemeFamily {
-        let family = self.context.family.toggled();
-        self.context.family = family;
-        family
+    /// Selects the other backend without starting a transition.
+    pub fn toggle_selection(&mut self) -> BackendSelection {
+        let selection = self.context.selection.toggled();
+        self.context.selection = selection;
+        selection
     }
 
-    /// Returns whether non-essential motion is reduced.
+    /// Returns the active backend's color scheme.
+    #[must_use]
+    pub fn color_scheme(&self) -> ColorScheme {
+        self.context.color_scheme()
+    }
+
+    /// Applies one color scheme to both selected backend contexts.
+    pub fn set_color_scheme(&mut self, color_scheme: ColorScheme) -> bool {
+        let first = A::set_color_scheme(&mut self.first(), color_scheme);
+        let second = B::set_color_scheme(&mut self.second(), color_scheme);
+        first || second
+    }
+
+    /// Toggles the color scheme of both selected backend contexts.
+    pub fn toggle_color_scheme(&mut self) -> ColorScheme {
+        let color_scheme = self.color_scheme().toggled();
+        let _ = self.set_color_scheme(color_scheme);
+        color_scheme
+    }
+
+    /// Returns whether the active backend reduces non-essential motion.
     #[must_use]
     pub fn reduce_motion(&self) -> bool {
         self.context.reduce_motion()
     }
 
-    /// Updates reduced motion for every retained themed context.
+    /// Applies reduced motion to both selected backend contexts.
     pub fn set_reduce_motion(&mut self, reduce_motion: bool) {
-        self.adwaita().set_reduce_motion(reduce_motion);
-        self.material().set_reduce_motion(reduce_motion);
+        A::set_reduce_motion(&mut self.first(), reduce_motion);
+        B::set_reduce_motion(&mut self.second(), reduce_motion);
     }
 
-    /// Toggles reduced motion for every retained themed context.
+    /// Toggles reduced motion for both selected backend contexts.
     pub fn toggle_reduce_motion(&mut self) -> bool {
         let reduce_motion = !self.reduce_motion();
         self.set_reduce_motion(reduce_motion);
         reduce_motion
     }
 
-    pub(crate) fn adwaita(&mut self) -> iced_adwaita::context::UpdateCx<'_> {
-        iced_adwaita::context::UpdateCx::new(self.runtime, &mut self.context.adwaita)
+    /// Creates the first backend's concrete update context.
+    pub fn first(&mut self) -> A::UpdateCx<'_> {
+        A::update_cx(self.runtime, &mut self.context.first)
     }
 
-    pub(crate) fn material(&mut self) -> iced_material::context::UpdateCx<'_> {
-        iced_material::context::UpdateCx::new(self.runtime, &mut self.context.material)
+    /// Creates the second backend's concrete update context.
+    pub fn second(&mut self) -> B::UpdateCx<'_> {
+        B::update_cx(self.runtime, &mut self.context.second)
     }
 }
 
-/// Read-only runtime inputs used by adapter views.
-pub struct ViewCx<'a> {
+/// Read-only runtime inputs for a generic backend pair.
+pub struct AdapterViewCx<'a, A, B>
+where
+    A: ThemeBackend,
+    B: ThemeBackend,
+{
     runtime: &'a MotionRuntime,
-    context: &'a Context,
+    context: &'a AdapterContext<A, B>,
 }
 
-impl<'a> ViewCx<'a> {
+impl<'a, A, B> AdapterViewCx<'a, A, B>
+where
+    A: ThemeBackend,
+    B: ThemeBackend,
+{
     /// Creates an adapter view context.
     #[must_use]
-    pub const fn new(runtime: &'a MotionRuntime, context: &'a Context) -> Self {
+    pub const fn new(runtime: &'a MotionRuntime, context: &'a AdapterContext<A, B>) -> Self {
         Self { runtime, context }
     }
 
-    /// Returns the active component family.
+    /// Returns the active backend side.
     #[must_use]
-    pub const fn family(&self) -> ThemeFamily {
-        self.context.family
+    pub const fn selection(&self) -> BackendSelection {
+        self.context.selection
     }
 
-    /// Returns whether non-essential motion is reduced.
+    /// Returns the adapter context.
+    #[must_use]
+    pub const fn context(&self) -> &AdapterContext<A, B> {
+        self.context
+    }
+
+    /// Returns the active backend's color scheme.
+    #[must_use]
+    pub fn color_scheme(&self) -> ColorScheme {
+        self.context.color_scheme()
+    }
+
+    /// Returns whether the active backend reduces non-essential motion.
     #[must_use]
     pub fn reduce_motion(&self) -> bool {
         self.context.reduce_motion()
     }
 
-    pub(crate) const fn adwaita(&self) -> iced_adwaita::context::ViewCx<'_> {
-        iced_adwaita::context::ViewCx::new(self.runtime, &self.context.adwaita)
+    /// Creates the first backend's concrete view context.
+    #[must_use]
+    pub fn first(&self) -> A::ViewCx<'_> {
+        A::view_cx(self.runtime, &self.context.first)
     }
 
-    pub(crate) const fn material(&self) -> iced_material::context::ViewCx<'_> {
-        iced_material::context::ViewCx::new(self.runtime, &self.context.material)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use iced_component_core::anim::MotionRuntime;
-
-    use super::{Context, ThemeFamily, UpdateCx};
-
-    #[test]
-    fn family_switch_is_direct_and_preserves_theme_revisions() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = Context::default();
-        let adwaita_revision = context.adwaita().style_revision();
-        let material_revision = context.material().style_revision();
-
-        let changed = UpdateCx::new(&mut runtime, &mut context).set_family(ThemeFamily::Material);
-
-        assert!(changed);
-        assert_eq!(context.family(), ThemeFamily::Material);
-        assert_eq!(context.adwaita().style_revision(), adwaita_revision);
-        assert_eq!(context.material().style_revision(), material_revision);
-        assert_eq!(runtime.motion_count(), 0);
-    }
-
-    #[test]
-    fn reduced_motion_is_synchronized_across_backends() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = Context::default();
-
-        UpdateCx::new(&mut runtime, &mut context).set_reduce_motion(true);
-
-        assert!(context.reduce_motion());
-        assert!(context.adwaita().reduce_motion());
-        assert!(context.material().reduce_motion());
+    /// Creates the second backend's concrete view context.
+    #[must_use]
+    pub fn second(&self) -> B::ViewCx<'_> {
+        B::view_cx(self.runtime, &self.context.second)
     }
 }
+
+#[cfg(all(feature = "adwaita", feature = "material"))]
+pub use defaults::{Context, UpdateCx, ViewCx};

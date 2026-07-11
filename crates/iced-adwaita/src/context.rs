@@ -118,12 +118,18 @@ pub struct Context {
 }
 
 impl Context {
-    /// Creates an Adwaita component context from an explicit theme pack.
+    /// Creates an Adwaita component context for a theme mode.
     #[must_use]
     pub fn new(mode: ThemeMode) -> Self {
+        Self::from_theme(Theme::new(mode))
+    }
+
+    /// Creates an Adwaita component context from an explicit theme.
+    #[must_use]
+    pub fn from_theme(theme: Theme) -> Self {
         Self {
             core: ComponentContext::new(),
-            theme: Theme::new(mode),
+            theme,
             style_transition: StyleTransitionState::new(),
         }
     }

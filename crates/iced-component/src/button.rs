@@ -1,328 +1,210 @@
-//! Unified adapter for theme-native button implementations.
+//! Generic adapter for theme-native button implementations.
 
-use iced::{Element, widget::Space};
+#[cfg(all(feature = "adwaita", feature = "material"))]
+mod defaults;
+#[cfg(all(feature = "adwaita", feature = "material"))]
+mod style;
+#[cfg(all(test, feature = "adwaita", feature = "material"))]
+mod tests;
+
+use iced::Element;
 use iced_component_core::anim::MotionError;
 
-use crate::context::{ThemeFamily, UpdateCx, ViewCx};
+use crate::{
+    backend::{ButtonBackend, ButtonViewBackend},
+    context::{AdapterUpdateCx, AdapterViewCx, BackendSelection},
+};
 
 pub use iced_component_core::component::button::{ButtonEvent, ButtonOutcome, ButtonSignal};
+#[cfg(all(feature = "adwaita", feature = "material"))]
+pub use style::ButtonStyle;
 
-/// Portable button emphasis understood by every adapter backend.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum ButtonStyle {
-    /// The theme's ordinary action button.
-    #[default]
-    Default,
-    /// The theme's most prominent action button.
-    Primary,
-    /// A lower-emphasis filled or neutral action.
-    Secondary,
-    /// A minimal button without a persistent container.
-    Quiet,
-}
-
-/// Stateful button backed by both themed component implementations.
-///
-/// Registering this adapter registers both implementations. Events are applied
-/// to both so switching [`ThemeFamily`] is immediate and preserves interaction
-/// state without a cross-theme animation.
+/// Stateful button adapter backed by exactly two selected theme libraries.
 #[derive(Debug)]
-pub struct Button {
-    style: ButtonStyle,
-    adwaita: iced_adwaita::button::Button,
-    material: iced_material::button::Button,
+pub struct AdaptiveButton<A, B>
+where
+    A: ButtonBackend,
+    B: ButtonBackend,
+{
+    first: A::Button,
+    second: B::Button,
 }
 
-impl Button {
-    /// Creates an ordinary theme-native button.
+impl<A, B> AdaptiveButton<A, B>
+where
+    A: ButtonBackend,
+    B: ButtonBackend,
+{
+    /// Creates an adapter from fully configured concrete buttons.
     #[must_use]
-    pub fn new() -> Self {
-        Self::with_style(ButtonStyle::Default)
+    pub const fn from_backends(first: A::Button, second: B::Button) -> Self {
+        Self { first, second }
     }
 
-    /// Creates a prominent action button.
-    #[must_use]
-    pub fn primary() -> Self {
-        Self::with_style(ButtonStyle::Primary)
-    }
-
-    /// Creates a lower-emphasis action button.
-    #[must_use]
-    pub fn secondary() -> Self {
-        Self::with_style(ButtonStyle::Secondary)
-    }
-
-    /// Creates a minimal action button.
-    #[must_use]
-    pub fn quiet() -> Self {
-        Self::with_style(ButtonStyle::Quiet)
-    }
-
-    /// Creates a button with portable style semantics.
-    #[must_use]
-    pub fn with_style(style: ButtonStyle) -> Self {
-        Self {
-            style,
-            adwaita: adwaita_button(style),
-            material: material_button(style),
-        }
-    }
-
-    /// Returns this button with a disabled initial state.
+    /// Returns this button with a disabled initial state in both backends.
     #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.adwaita = self.adwaita.disabled(disabled);
-        self.material = self.material.disabled(disabled);
+        self.first = A::disabled(self.first, disabled);
+        self.second = B::disabled(self.second, disabled);
         self
     }
 
-    /// Registers both themed motion slots in the application runtime.
-    pub fn register(&mut self, cx: &mut UpdateCx<'_>) {
-        self.adwaita.register(&mut cx.adwaita());
-        self.material.register(&mut cx.material());
+    /// Registers both selected backends for direct runtime switching.
+    pub fn register(&mut self, cx: &mut AdapterUpdateCx<'_, A, B>) {
+        A::register(&mut self.first, &mut cx.first());
+        B::register(&mut self.second, &mut cx.second());
     }
 
-    /// Synchronizes both themed visual targets with their retained contexts.
-    pub fn sync(&mut self, cx: &mut UpdateCx<'_>) -> Result<bool, MotionError> {
-        let adwaita = self.adwaita.sync(&mut cx.adwaita())?;
-        let material = self.material.sync(&mut cx.material())?;
-        Ok(adwaita || material)
+    /// Synchronizes both concrete buttons with their retained contexts.
+    pub fn sync(&mut self, cx: &mut AdapterUpdateCx<'_, A, B>) -> Result<bool, MotionError> {
+        let first = A::sync(&mut self.first, &mut cx.first())?;
+        let second = B::sync(&mut self.second, &mut cx.second())?;
+        Ok(first || second)
     }
 
-    /// Replaces the portable style and synchronizes both implementations.
-    pub fn set_style(
-        &mut self,
-        style: ButtonStyle,
-        cx: &mut UpdateCx<'_>,
-    ) -> Result<bool, MotionError> {
-        if self.style == style {
-            return Ok(false);
-        }
-
-        self.style = style;
-        self.adwaita.set_variant(adwaita_variant(style));
-        self.material.set_variant(material_variant(style));
-        self.sync(cx)
-    }
-
-    /// Enables or disables both themed implementations.
+    /// Enables or disables both concrete buttons.
     pub fn set_disabled(
         &mut self,
         disabled: bool,
-        cx: &mut UpdateCx<'_>,
+        cx: &mut AdapterUpdateCx<'_, A, B>,
     ) -> Result<bool, MotionError> {
-        let adwaita = self.adwaita.set_disabled(disabled, &mut cx.adwaita())?;
-        let material = self.material.set_disabled(disabled, &mut cx.material())?;
-        Ok(adwaita || material)
+        let first = A::set_disabled(&mut self.first, disabled, &mut cx.first())?;
+        let second = B::set_disabled(&mut self.second, disabled, &mut cx.second())?;
+        Ok(first || second)
     }
 
-    /// Applies one rendered event to both implementations.
+    /// Applies one rendered event to both backends and returns the active result.
     pub fn update_event(
         &mut self,
         event: ButtonEvent,
-        cx: &mut UpdateCx<'_>,
+        cx: &mut AdapterUpdateCx<'_, A, B>,
     ) -> Result<ButtonOutcome, MotionError> {
-        let family = cx.family();
-        let adwaita = self.adwaita.update_event(event, &mut cx.adwaita())?;
-        let material = self.material.update_event(event, &mut cx.material())?;
+        let selection = cx.selection();
+        let first = A::update_event(&mut self.first, event, &mut cx.first())?;
+        let second = B::update_event(&mut self.second, event, &mut cx.second())?;
 
-        Ok(match family {
-            ThemeFamily::Adwaita => adwaita,
-            ThemeFamily::Material => material,
+        Ok(match selection {
+            BackendSelection::First => first,
+            BackendSelection::Second => second,
         })
     }
 
-    /// Builds a view using the currently selected themed backend.
+    /// Builds a view using the currently selected backend.
     #[must_use]
-    pub fn view<'a, 'cx, Message>(&'a self, cx: &'a ViewCx<'cx>) -> ButtonView<'a, 'cx, Message>
+    pub fn view<'a, Message>(
+        &'a self,
+        cx: &AdapterViewCx<'_, A, B>,
+    ) -> AdaptiveButtonView<'a, Message, A, B>
     where
-        'cx: 'a,
         Message: Clone + 'a,
     {
-        ButtonView {
-            button: self,
-            cx,
-            content: Space::new().into(),
-            on_event: None,
-        }
+        let backend = match cx.selection() {
+            BackendSelection::First => {
+                AdaptiveButtonViewBackend::First(A::view(&self.first, &cx.first()))
+            }
+            BackendSelection::Second => {
+                AdaptiveButtonViewBackend::Second(B::view(&self.second, &cx.second()))
+            }
+        };
+        AdaptiveButtonView { backend }
     }
 
-    /// Returns the portable style semantics.
+    /// Returns the first concrete themed button.
     #[must_use]
-    pub const fn style(&self) -> ButtonStyle {
-        self.style
+    pub const fn first(&self) -> &A::Button {
+        &self.first
     }
 
-    /// Returns whether both themed motion slots are registered.
+    /// Returns the mutable first concrete themed button.
+    pub fn first_mut(&mut self) -> &mut A::Button {
+        &mut self.first
+    }
+
+    /// Returns the second concrete themed button.
+    #[must_use]
+    pub const fn second(&self) -> &B::Button {
+        &self.second
+    }
+
+    /// Returns the mutable second concrete themed button.
+    pub fn second_mut(&mut self) -> &mut B::Button {
+        &mut self.second
+    }
+
+    /// Returns whether both selected backend slots are registered.
     #[must_use]
     pub fn is_registered(&self) -> bool {
-        self.adwaita.is_registered() && self.material.is_registered()
-    }
-
-    /// Returns whether this adapter is disabled.
-    #[must_use]
-    pub const fn is_disabled(&self) -> bool {
-        self.adwaita.is_disabled()
+        A::is_registered(&self.first) && B::is_registered(&self.second)
     }
 }
 
-impl Default for Button {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Iced view builder for an adapter [`Button`].
-pub struct ButtonView<'a, 'cx, Message> {
-    button: &'a Button,
-    cx: &'a ViewCx<'cx>,
-    content: Element<'a, Message>,
-    on_event: Option<Box<dyn Fn(ButtonEvent) -> Message + 'a>>,
-}
-
-impl<'a, Message> ButtonView<'a, '_, Message>
+/// Temporary view adapter for a generic [`AdaptiveButton`].
+pub struct AdaptiveButtonView<'a, Message, A, B>
 where
-    Message: 'a,
+    A: ButtonBackend + 'a,
+    B: ButtonBackend + 'a,
+    Message: Clone + 'a,
+{
+    backend: AdaptiveButtonViewBackend<A::View<'a, Message>, B::View<'a, Message>>,
+}
+
+enum AdaptiveButtonViewBackend<A, B> {
+    First(A),
+    Second(B),
+}
+
+impl<'a, Message, A, B> AdaptiveButtonView<'a, Message, A, B>
+where
+    A: ButtonBackend + 'a,
+    B: ButtonBackend + 'a,
+    Message: Clone + 'a,
 {
     /// Replaces the content rendered by the selected backend.
     #[must_use]
-    pub fn content(mut self, content: impl Into<Element<'a, Message>>) -> Self {
-        self.content = content.into();
-        self
+    pub fn content(self, content: impl Into<Element<'a, Message>>) -> Self {
+        let content = content.into();
+        let backend = match self.backend {
+            AdaptiveButtonViewBackend::First(button) => {
+                AdaptiveButtonViewBackend::First(button.content(content))
+            }
+            AdaptiveButtonViewBackend::Second(button) => {
+                AdaptiveButtonViewBackend::Second(button.content(content))
+            }
+        };
+        Self { backend }
     }
 
     /// Maps rendered button events into application messages.
     #[must_use]
-    pub fn on_event(mut self, mapper: impl Fn(ButtonEvent) -> Message + 'a) -> Self {
-        self.on_event = Some(Box::new(mapper));
-        self
+    pub fn on_event<F>(self, mapper: F) -> Self
+    where
+        F: Fn(ButtonEvent) -> Message + 'a,
+    {
+        let backend = match self.backend {
+            AdaptiveButtonViewBackend::First(button) => {
+                AdaptiveButtonViewBackend::First(button.on_event(mapper))
+            }
+            AdaptiveButtonViewBackend::Second(button) => {
+                AdaptiveButtonViewBackend::Second(button.on_event(mapper))
+            }
+        };
+        Self { backend }
     }
 }
 
-impl<'a, 'cx, Message> From<ButtonView<'a, 'cx, Message>> for Element<'a, Message>
+impl<'a, Message, A, B> From<AdaptiveButtonView<'a, Message, A, B>> for Element<'a, Message>
 where
-    'cx: 'a,
+    A: ButtonBackend + 'a,
+    B: ButtonBackend + 'a,
     Message: Clone + 'a,
 {
-    fn from(view: ButtonView<'a, 'cx, Message>) -> Self {
-        match view.cx.family() {
-            ThemeFamily::Adwaita => {
-                let cx = view.cx.adwaita();
-                let button = view.button.adwaita.view(&cx).content(view.content);
-                match view.on_event {
-                    Some(mapper) => button.on_event(mapper).into(),
-                    None => button.into(),
-                }
-            }
-            ThemeFamily::Material => {
-                let cx = view.cx.material();
-                let button = view.button.material.view(&cx).content(view.content);
-                match view.on_event {
-                    Some(mapper) => button.on_event(mapper).into(),
-                    None => button.into(),
-                }
-            }
+    fn from(view: AdaptiveButtonView<'a, Message, A, B>) -> Self {
+        match view.backend {
+            AdaptiveButtonViewBackend::First(button) => button.into(),
+            AdaptiveButtonViewBackend::Second(button) => button.into(),
         }
     }
 }
 
-fn adwaita_button(style: ButtonStyle) -> iced_adwaita::button::Button {
-    iced_adwaita::button::Button::empty()
-        .with_content_layout(iced_adwaita::button::ButtonContentLayout::Text)
-        .with_variant(adwaita_variant(style))
-}
-
-const fn adwaita_variant(style: ButtonStyle) -> iced_adwaita::button::ButtonVariant {
-    use iced_adwaita::button::{ButtonTreatment, ButtonVariant};
-
-    match style {
-        ButtonStyle::Default | ButtonStyle::Secondary => ButtonVariant::STANDARD,
-        ButtonStyle::Primary => ButtonVariant::SUGGESTED,
-        ButtonStyle::Quiet => ButtonVariant::STANDARD.with_treatment(ButtonTreatment::Flat),
-    }
-}
-
-const fn material_button(style: ButtonStyle) -> iced_material::button::Button {
-    iced_material::button::Button::with_variant(material_variant(style))
-}
-
-const fn material_variant(style: ButtonStyle) -> iced_material::button::ButtonVariant {
-    use iced_material::button::ButtonVariant;
-
-    match style {
-        ButtonStyle::Default => ButtonVariant::ELEVATED,
-        ButtonStyle::Primary => ButtonVariant::FILLED,
-        ButtonStyle::Secondary => ButtonVariant::FILLED_TONAL,
-        ButtonStyle::Quiet => ButtonVariant::TEXT,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use iced::{Element, widget::text};
-    use iced_component_core::anim::MotionRuntime;
-
-    use super::{Button, ButtonEvent, ButtonStyle};
-    use crate::context::{Context, ThemeFamily, UpdateCx, ViewCx};
-
-    #[test]
-    fn register_prepares_both_backends_for_direct_switching() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = Context::default();
-        let mut button = Button::primary();
-
-        button.register(&mut UpdateCx::new(&mut runtime, &mut context));
-
-        assert!(button.is_registered());
-        assert_eq!(runtime.motion_count(), 2);
-    }
-
-    #[test]
-    fn interaction_state_is_kept_in_sync_across_backends() {
-        let mut runtime = MotionRuntime::new();
-        let mut context = Context::default();
-        let mut button = Button::new();
-        button.register(&mut UpdateCx::new(&mut runtime, &mut context));
-
-        button
-            .update_event(
-                ButtonEvent::Signal(super::ButtonSignal::HoverEnter),
-                &mut UpdateCx::new(&mut runtime, &mut context),
-            )
-            .unwrap();
-
-        assert_eq!(
-            button.adwaita.style_state(),
-            iced_adwaita::button::ButtonStyleState::Hovered
-        );
-        assert_eq!(
-            button.material.style_state(),
-            iced_material::button::ButtonStyleState::Hover
-        );
-    }
-
-    #[test]
-    fn view_builds_for_each_selected_family() {
-        #[derive(Clone)]
-        struct Message;
-
-        let mut runtime = MotionRuntime::new();
-        let mut context = Context::default();
-        let button = Button::with_style(ButtonStyle::Secondary);
-
-        let view = ViewCx::new(&runtime, &context);
-        let _: Element<'_, Message> = button
-            .view(&view)
-            .content(text("Action"))
-            .on_event(|_| Message)
-            .into();
-
-        UpdateCx::new(&mut runtime, &mut context).set_family(ThemeFamily::Material);
-        let view = ViewCx::new(&runtime, &context);
-        let _: Element<'_, Message> = button
-            .view(&view)
-            .content(text("Action"))
-            .on_event(|_| Message)
-            .into();
-    }
-}
+#[cfg(all(feature = "adwaita", feature = "material"))]
+pub use defaults::{Button, ButtonView};
