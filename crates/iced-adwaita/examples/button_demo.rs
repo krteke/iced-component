@@ -10,7 +10,7 @@ use iced::{
 use iced_adwaita::{
     Context,
     button::{
-        Button, ButtonEvent, ButtonSignal, ButtonSync,
+        Button, ButtonEvent,
         icon::{IconButton, IconTextButton},
     },
     context::{ThemeMode, UpdateCx, ViewCx},
@@ -61,37 +61,12 @@ fn theme(state: &Demo) -> Theme {
 #[derive(Debug, Clone, Copy)]
 enum Message {
     Frame(Instant),
-    Save(ButtonEvent<SaveAction>),
-    Icon(ButtonEvent<IconAction>),
-    IconText(ButtonEvent<IconTextAction>),
-    Passive(PassiveButton, ButtonEvent<()>),
-    Theme(ButtonEvent<ThemeAction>),
-    ReduceMotion(ButtonEvent<ReduceMotionAction>),
-}
-
-#[derive(Debug, Clone, Copy)]
-enum SaveAction {
-    Save,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum IconAction {
-    Press,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum IconTextAction {
-    Open,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ThemeAction {
-    Toggle,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ReduceMotionAction {
-    Toggle,
+    Save(ButtonEvent),
+    Icon(ButtonEvent),
+    IconText(ButtonEvent),
+    Passive(PassiveButton, ButtonEvent),
+    Theme(ButtonEvent),
+    ReduceMotion(ButtonEvent),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -183,31 +158,32 @@ impl Demo {
         Task::none()
     }
 
-    fn save_event(&mut self, event: ButtonEvent<SaveAction>) {
+    fn save_event(&mut self, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
-        if matches!(
-            self.save.update_event(event, &mut cx).unwrap_or(None),
-            Some(SaveAction::Save)
-        ) {
+        if self
+            .save
+            .update_event(event, &mut cx)
+            .is_ok_and(iced_adwaita::button::ButtonOutcome::is_activated)
+        {
             self.clicks += 1;
             self.save.set_content(format!("Save {}", self.clicks));
         }
     }
 
-    fn icon_event(&mut self, event: ButtonEvent<IconAction>) {
+    fn icon_event(&mut self, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
         let _ = self.icon.update_event(event, &mut cx);
     }
 
-    fn icon_text_event(&mut self, event: ButtonEvent<IconTextAction>) {
+    fn icon_text_event(&mut self, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
         let _ = self.icon_text.update_event(event, &mut cx);
     }
 
-    fn passive_event(&mut self, button: PassiveButton, event: ButtonEvent<()>) {
+    fn passive_event(&mut self, button: PassiveButton, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
         match button {
@@ -229,42 +205,25 @@ impl Demo {
         }
     }
 
-    fn theme_event(&mut self, event: ButtonEvent<ThemeAction>) {
+    fn theme_event(&mut self, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
-        if matches!(
-            self.theme_button
-                .update_event(event, &mut cx)
-                .unwrap_or(None),
-            Some(ThemeAction::Toggle)
-        ) {
-            let change = cx.toggle_theme();
-            let signal = ButtonSignal::Sync(ButtonSync::StyleChanged(change));
-            let _ = iced_component_core::update_components!(
-                cx,
-                signal,
-                [
-                    self.save,
-                    self.icon,
-                    self.icon_text,
-                    self.suggested,
-                    self.destructive,
-                    self.flat,
-                    self.pill,
-                    self.custom,
-                    self.disabled,
-                    self.theme_button,
-                    self.reduce_button,
-                ]
-            );
+        if self
+            .theme_button
+            .update_event(event, &mut cx)
+            .is_ok_and(iced_adwaita::button::ButtonOutcome::is_activated)
+        {
+            cx.toggle_theme();
         }
     }
 
-    fn reduce_motion_event(&mut self, event: ButtonEvent<ReduceMotionAction>) {
+    fn reduce_motion_event(&mut self, event: ButtonEvent) {
         let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
 
-        if let Ok(Some(ReduceMotionAction::Toggle)) =
-            self.reduce_button.update_event(event, &mut cx)
+        if self
+            .reduce_button
+            .update_event(event, &mut cx)
+            .is_ok_and(iced_adwaita::button::ButtonOutcome::is_activated)
         {
             cx.toggle_reduce_motion();
         }
@@ -277,50 +236,36 @@ impl Demo {
         let bg = pack.app.window.bg.color();
 
         let controls = row![
-            self.theme_button
-                .view(&view)
-                .connect(ThemeAction::Toggle, Message::Theme),
+            self.theme_button.view(&view).on_event(Message::Theme),
             self.reduce_button
                 .view(&view)
-                .connect(ReduceMotionAction::Toggle, Message::ReduceMotion),
+                .on_event(Message::ReduceMotion),
         ]
         .spacing(12);
 
         let buttons = column![
             row![
-                self.save
-                    .view(&view)
-                    .connect(SaveAction::Save, Message::Save),
-                self.icon
-                    .view(&view)
-                    .connect(IconAction::Press, Message::Icon),
-                self.icon_text
-                    .view(&view)
-                    .connect(IconTextAction::Open, Message::IconText),
+                self.save.view(&view).on_event(Message::Save),
+                self.icon.view(&view).on_event(Message::Icon),
+                self.icon_text.view(&view).on_event(Message::IconText),
                 self.suggested
                     .view(&view)
-                    .connect((), |event| Message::Passive(
-                        PassiveButton::Suggested,
-                        event
-                    )),
+                    .on_event(|event| Message::Passive(PassiveButton::Suggested, event)),
                 self.destructive
                     .view(&view)
-                    .connect((), |event| Message::Passive(
-                        PassiveButton::Destructive,
-                        event
-                    )),
+                    .on_event(|event| Message::Passive(PassiveButton::Destructive, event)),
             ]
             .spacing(12),
             row![
                 self.flat
                     .view(&view)
-                    .connect((), |event| Message::Passive(PassiveButton::Flat, event)),
+                    .on_event(|event| Message::Passive(PassiveButton::Flat, event)),
                 self.pill
                     .view(&view)
-                    .connect((), |event| Message::Passive(PassiveButton::Pill, event)),
+                    .on_event(|event| Message::Passive(PassiveButton::Pill, event)),
                 self.custom
                     .view(&view)
-                    .connect((), |event| Message::Passive(PassiveButton::Custom, event)),
+                    .on_event(|event| Message::Passive(PassiveButton::Custom, event)),
                 self.disabled.view(&view),
             ]
             .spacing(12),

@@ -2,6 +2,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use aura_anim::prelude::MotionRuntime;
 
+use super::animation::AnimationOverrides;
+
 /// Monotonic marker for the style snapshot carried by a [`ComponentContext`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
 pub struct StyleRevision(u64);
@@ -28,6 +30,7 @@ pub struct StyleChange {
 pub struct ComponentContext {
     style_revision: StyleRevision,
     reduce_motion: bool,
+    animation_overrides: AnimationOverrides,
 }
 
 impl ComponentContext {
@@ -37,6 +40,7 @@ impl ComponentContext {
         Self {
             style_revision: StyleRevision::next(),
             reduce_motion: false,
+            animation_overrides: AnimationOverrides::new(),
         }
     }
 
@@ -50,6 +54,17 @@ impl ComponentContext {
     #[must_use]
     pub const fn reduce_motion(&self) -> bool {
         self.reduce_motion
+    }
+
+    /// Returns the installed component-animation overrides.
+    #[must_use]
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        &self.animation_overrides
+    }
+
+    /// Returns the mutable component-animation override store.
+    pub fn animation_overrides_mut(&mut self) -> &mut AnimationOverrides {
+        &mut self.animation_overrides
     }
 
     /// Updates whether non-essential animation should be reduced.
@@ -131,6 +146,17 @@ impl<'a> ComponentUpdateCx<'a> {
     pub fn reduce_motion(&self) -> bool {
         self.context.reduce_motion
     }
+
+    /// Returns the installed component-animation overrides.
+    #[must_use]
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.context.animation_overrides()
+    }
+
+    /// Returns the mutable component-animation override store.
+    pub fn animation_overrides_mut(&mut self) -> &mut AnimationOverrides {
+        self.context.animation_overrides_mut()
+    }
 }
 
 /// Read-only inputs used while rendering component views.
@@ -158,6 +184,12 @@ impl<'a> ComponentViewCx<'a> {
     #[must_use]
     pub fn reduce_motion(&self) -> bool {
         self.context.reduce_motion
+    }
+
+    /// Returns the installed component-animation overrides.
+    #[must_use]
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.context.animation_overrides()
     }
 }
 

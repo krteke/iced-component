@@ -13,11 +13,11 @@ use crate::context::ViewCx;
 use super::{Button, ButtonEvent, ButtonResolvedStyle, ButtonSignal, ButtonSnapshot};
 
 /// Iced view builder for [`Button`].
-pub struct ButtonView<'a, Message, Action = ()> {
+pub struct ButtonView<'a, Message> {
     snapshot: ButtonSnapshot,
     content: Element<'a, Message>,
     layout: ResolvedButtonLayout,
-    events: ButtonViewEvents<'a, Message, Action>,
+    events: ButtonViewEvents<'a, Message>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -28,26 +28,18 @@ struct ResolvedButtonLayout {
     padding_y: f32,
 }
 
-struct ButtonViewEvents<'a, Message, Action = ()> {
-    on_event: Option<Box<dyn Fn(ButtonEvent<Action>) -> Message + 'a>>,
-    on_press: Option<Action>,
+struct ButtonViewEvents<'a, Message> {
+    on_event: Option<Box<dyn Fn(ButtonEvent) -> Message + 'a>>,
 }
 
-impl<'a, Message, Action> ButtonViewEvents<'a, Message, Action> {
+impl<'a, Message> ButtonViewEvents<'a, Message> {
     const fn new() -> Self {
-        Self {
-            on_event: None,
-            on_press: None,
-        }
+        Self { on_event: None }
     }
 
-    fn connected<NextAction>(
-        action: NextAction,
-        mapper: impl Fn(ButtonEvent<NextAction>) -> Message + 'a,
-    ) -> ButtonViewEvents<'a, Message, NextAction> {
-        ButtonViewEvents {
+    fn on_event(mapper: impl Fn(ButtonEvent) -> Message + 'a) -> Self {
+        Self {
             on_event: Some(Box::new(mapper)),
-            on_press: Some(action),
         }
     }
 }
@@ -88,7 +80,7 @@ impl Button {
     }
 }
 
-impl<'a, Message, Action> ButtonView<'a, Message, Action>
+impl<'a, Message> ButtonView<'a, Message>
 where
     Message: 'a,
 {
@@ -99,19 +91,11 @@ where
         self
     }
 
-    /// Sets the release action and maps button events into application messages.
+    /// Maps rendered button events into application messages.
     #[must_use]
-    pub fn connect<NextAction>(
-        self,
-        action: NextAction,
-        mapper: impl Fn(ButtonEvent<NextAction>) -> Message + 'a,
-    ) -> ButtonView<'a, Message, NextAction> {
-        ButtonView {
-            snapshot: self.snapshot,
-            content: self.content,
-            layout: self.layout,
-            events: ButtonViewEvents::<Message, Action>::connected(action, mapper),
-        }
+    pub fn on_event(mut self, mapper: impl Fn(ButtonEvent) -> Message + 'a) -> Self {
+        self.events = ButtonViewEvents::on_event(mapper);
+        self
     }
 }
 
@@ -127,12 +111,11 @@ where
         .into()
 }
 
-impl<'a, Message, Action> From<ButtonView<'a, Message, Action>> for Element<'a, Message>
+impl<'a, Message> From<ButtonView<'a, Message>> for Element<'a, Message>
 where
     Message: Clone + 'a,
-    Action: 'a,
 {
-    fn from(view: ButtonView<'a, Message, Action>) -> Self {
+    fn from(view: ButtonView<'a, Message>) -> Self {
         let style = ButtonResolvedStyle::from_tokens(view.snapshot.motion.tokens);
 
         let mut surface = container(view.content)
@@ -166,10 +149,7 @@ where
             .on_enter(on_event(ButtonEvent::Signal(ButtonSignal::HoverEnter)))
             .on_exit(on_event(ButtonEvent::Signal(ButtonSignal::HoverExit)))
             .on_press(on_event(ButtonEvent::Signal(ButtonSignal::PressDown)))
-            .on_release(match view.events.on_press {
-                Some(action) => on_event(ButtonEvent::Pressed(action)),
-                None => on_event(ButtonEvent::Signal(ButtonSignal::PressUp)),
-            })
+            .on_release(on_event(ButtonEvent::Pressed))
             .interaction(mouse::Interaction::Pointer)
             .into()
     }
@@ -201,12 +181,7 @@ mod tests {
     };
 
     #[test]
-    fn connected_button_view_builds_app_element() {
-        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-        enum Action {
-            Save,
-        }
-
+    fn event_mapped_button_view_builds_app_element() {
         #[derive(Clone)]
         struct Message;
 
@@ -215,22 +190,16 @@ mod tests {
         let cx = ViewCx::new(&runtime, &context);
         let button = Button::suggested("Save");
 
-        let _element: Element<'_, Message> =
-            button.view(&cx).connect(Action::Save, |_| Message).into();
+        let _element: Element<'_, Message> = button.view(&cx).on_event(|_| Message).into();
     }
 
     #[test]
-    fn connected_button_view_accepts_borrowed_mapper() {
-        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-        enum Action {
-            Save,
-        }
-
+    fn event_mapped_button_view_accepts_borrowed_mapper() {
         #[allow(dead_code)]
         #[derive(Clone)]
         struct Message<'a> {
             scope: &'a str,
-            event: ButtonEvent<Action>,
+            event: ButtonEvent,
         }
 
         let runtime = MotionRuntime::new();
@@ -241,7 +210,7 @@ mod tests {
 
         let _element: Element<'_, Message<'_>> = button
             .view(&cx)
-            .connect(Action::Save, |event| Message {
+            .on_event(|event| Message {
                 scope: scope.as_str(),
                 event,
             })

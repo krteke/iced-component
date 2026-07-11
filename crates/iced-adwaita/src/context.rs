@@ -1,10 +1,17 @@
+mod transition;
+
 use iced_component_core::{
     anim::MotionRuntime,
-    component::{ComponentContext, ComponentUpdateCx, ComponentViewCx, StyleChange, StyleRevision},
+    component::{
+        ComponentContext, ComponentUpdateCx, ComponentViewCx, StyleChange, StyleRevision,
+        animation::AnimationOverrides,
+    },
 };
 
-use crate::button::ButtonAnimations;
 use crate::theme::{ThemeLoadError, ThemePack};
+
+pub use transition::{StyleTransition, StyleTransitionBuilder};
+use transition::{StyleTransitionSnapshot, StyleTransitionState};
 
 /// The theme mode for the Adwaita component context.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -107,7 +114,7 @@ impl Theme {
 pub struct Context {
     core: ComponentContext,
     theme: Theme,
-    button_animations: ButtonAnimations,
+    style_transition: StyleTransitionState,
 }
 
 impl Context {
@@ -117,7 +124,7 @@ impl Context {
         Self {
             core: ComponentContext::new(),
             theme: Theme::new(mode),
-            button_animations: ButtonAnimations::default(),
+            style_transition: StyleTransitionState::new(),
         }
     }
 
@@ -145,10 +152,16 @@ impl Context {
         &self.theme
     }
 
-    /// Returns the configured button animations.
+    /// Returns sparse application-level component animation overrides.
     #[must_use]
-    pub const fn button_animations(&self) -> &ButtonAnimations {
-        &self.button_animations
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.core.animation_overrides()
+    }
+
+    /// Returns the configured transition for same-theme style changes.
+    #[must_use]
+    pub const fn style_transition(&self) -> &StyleTransition {
+        self.style_transition.config()
     }
 
     /// Returns the current style revision.
@@ -209,8 +222,10 @@ impl<'a> UpdateCx<'a> {
     pub fn toggle_theme(&mut self) -> StyleChange {
         let previous_mode = self.context.theme.mode;
         let previous_revision = self.context.style_revision();
+        let previous_pack = self.context.theme.pack().clone();
         self.context.theme.toggle_mode();
         let change = self.context.core.bump_style_revision();
+        self.start_style_transition(previous_pack);
         trace_theme_change(
             "toggle_theme",
             previous_mode,
@@ -225,9 +240,11 @@ impl<'a> UpdateCx<'a> {
     pub fn set_theme(&mut self, theme: Theme) -> StyleChange {
         let previous_mode = self.context.theme.mode;
         let previous_revision = self.context.style_revision();
+        let previous_pack = self.context.theme.pack().clone();
         let current_mode = theme.mode;
         self.context.theme = theme;
         let change = self.context.core.bump_style_revision();
+        self.start_style_transition(previous_pack);
         trace_theme_change(
             "set_theme",
             previous_mode,
@@ -242,8 +259,10 @@ impl<'a> UpdateCx<'a> {
     pub fn patch_theme(&mut self, patch: impl FnOnce(&mut ThemePack)) -> StyleChange {
         let mode = self.context.theme.mode;
         let previous_revision = self.context.style_revision();
+        let previous_pack = self.context.theme.pack().clone();
         patch(self.context.theme.pack_for_mut(mode));
         let change = self.context.core.bump_style_revision();
+        self.start_style_transition(previous_pack);
 
         trace_theme_change(
             "patch_theme",
@@ -262,8 +281,13 @@ impl<'a> UpdateCx<'a> {
         patch: impl FnOnce(&mut ThemePack),
     ) -> StyleChange {
         let previous_revision = self.context.style_revision();
+        let previous_pack =
+            (mode == self.context.theme.mode).then(|| self.context.theme.pack().clone());
         patch(self.context.theme.pack_for_mut(mode));
         let change = self.context.core.bump_style_revision();
+        if let Some(previous_pack) = previous_pack {
+            self.start_style_transition(previous_pack);
+        }
 
         trace_theme_change(
             "patch_theme_for",
@@ -278,8 +302,13 @@ impl<'a> UpdateCx<'a> {
     /// Replaces the pack for a specific mode and invalidates style-dependent motion.
     pub fn set_theme_pack(&mut self, mode: ThemeMode, pack: ThemePack) -> StyleChange {
         let previous_revision = self.context.style_revision();
+        let previous_pack =
+            (mode == self.context.theme.mode).then(|| self.context.theme.pack().clone());
         self.context.theme.set_pack(mode, pack);
         let change = self.context.core.bump_style_revision();
+        if let Some(previous_pack) = previous_pack {
+            self.start_style_transition(previous_pack);
+        }
 
         trace_theme_change(
             "set_theme_pack",
@@ -301,15 +330,25 @@ impl<'a> UpdateCx<'a> {
         Ok(self.set_theme_pack(mode, pack))
     }
 
-    /// Returns the configured button animations.
+    /// Returns sparse application-level component animation overrides.
     #[must_use]
-    pub const fn button_animations(&self) -> &ButtonAnimations {
-        &self.context.button_animations
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.context.animation_overrides()
     }
 
-    /// Replaces the runtime button animation configuration.
-    pub fn set_button_animations(&mut self, animations: ButtonAnimations) {
-        self.context.button_animations = animations;
+    /// Installs or replaces one typed component animation override.
+    pub fn set_animation_override<T: 'static>(&mut self, animations: T) {
+        self.context.core.animation_overrides_mut().set(animations);
+    }
+
+    /// Removes one typed component animation override.
+    pub fn remove_animation_override<T: 'static>(&mut self) -> bool {
+        self.context.core.animation_overrides_mut().remove::<T>()
+    }
+
+    /// Replaces the transition used for subsequent same-theme style changes.
+    pub fn set_style_transition(&mut self, transition: StyleTransition) {
+        self.context.style_transition.set_config(transition);
     }
 
     /// Returns the current style revision.
@@ -327,11 +366,28 @@ impl<'a> UpdateCx<'a> {
     /// Updates whether non-essential motion should be reduced.
     pub fn set_reduce_motion(&mut self, reduce_motion: bool) {
         self.context.core.set_reduce_motion(reduce_motion);
+        if reduce_motion {
+            self.context.style_transition.finish(self.runtime);
+        }
     }
 
     /// Toggles the reduced-motion preference.
     pub fn toggle_reduce_motion(&mut self) {
         self.context.core.toggle_reduce_motion();
+        if self.context.reduce_motion() {
+            self.context.style_transition.finish(self.runtime);
+        }
+    }
+
+    pub(crate) fn style_transition(&self) -> Option<StyleTransitionSnapshot<'_>> {
+        self.context.style_transition.snapshot(self.runtime)
+    }
+
+    fn start_style_transition(&mut self, previous_pack: ThemePack) {
+        let reduce_motion = self.context.reduce_motion();
+        self.context
+            .style_transition
+            .start(previous_pack, self.runtime, reduce_motion);
     }
 }
 
@@ -418,6 +474,16 @@ impl<'a> ViewCx<'a> {
     pub const fn reduce_motion(&self) -> bool {
         self.context.reduce_motion()
     }
+
+    /// Returns sparse application-level component animation overrides.
+    #[must_use]
+    pub const fn animation_overrides(&self) -> &AnimationOverrides {
+        self.context.animation_overrides()
+    }
+
+    pub(crate) fn style_transition(&self) -> Option<StyleTransitionSnapshot<'_>> {
+        self.context.style_transition.snapshot(self.runtime)
+    }
 }
 
 #[cfg(test)]
@@ -498,6 +564,20 @@ mod tests {
 
         assert!(context.reduce_motion());
         assert!(context.core().reduce_motion());
+    }
+
+    #[test]
+    fn reduced_motion_finishes_context_style_transition() {
+        let mut runtime = MotionRuntime::new();
+        let mut context = Context::light();
+
+        {
+            let mut update = UpdateCx::new(&mut runtime, &mut context);
+            update.set_reduce_motion(true);
+            update.toggle_theme();
+        }
+
+        assert!(ViewCx::new(&runtime, &context).style_transition().is_none());
     }
 
     #[test]

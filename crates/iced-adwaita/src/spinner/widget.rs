@@ -1,3 +1,4 @@
+use aura_anim::core::interpolate::InterpolationProgress;
 use iced::{
     Element, Length,
     time::{Duration, Instant},
@@ -82,11 +83,19 @@ impl Spinner {
     #[must_use]
     pub fn visual(self, context: &ViewCx<'_>) -> SpinnerVisual {
         let tokens = context.theme().pack().spinner;
+        let color = self.color.unwrap_or_else(|| {
+            context
+                .style_transition()
+                .map_or(tokens.color, |transition| {
+                    crate::theme::interpolate::color(
+                        transition.from.spinner.color,
+                        tokens.color,
+                        InterpolationProgress::new(transition.progress),
+                    )
+                })
+        });
 
-        SpinnerVisual::new(
-            self.size.unwrap_or_else(|| tokens.size.value()),
-            self.color.unwrap_or(tokens.color),
-        )
+        SpinnerVisual::new(self.size.unwrap_or_else(|| tokens.size.value()), color)
     }
 
     /// Builds the Iced view.
@@ -177,11 +186,16 @@ mod tests {
     fn visual_defaults_are_resolved_from_context_theme() {
         let mut context = Context::light();
         let mut runtime = MotionRuntime::new();
+        let initial = Spinner::new().visual(&ViewCx::new(&runtime, &context));
 
         UpdateCx::new(&mut runtime, &mut context).patch_theme(|theme| {
             theme.spinner.color = Color::new(1, 2, 3);
         });
 
+        let view = ViewCx::new(&runtime, &context);
+        assert_eq!(Spinner::new().visual(&view).color, initial.color);
+
+        runtime.tick(aura_anim::prelude::Duration::from_millis(200.0));
         let view = ViewCx::new(&runtime, &context);
 
         assert_eq!(Spinner::new().visual(&view).color, Color::new(1, 2, 3));

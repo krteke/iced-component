@@ -66,10 +66,9 @@ impl Default for Demo {
 
 impl Demo {
     fn update(&mut self, message: Message) -> Task<Message> {
-        let mut cx = UpdateCx::new(&mut self.runtime, &mut self.context);
-
         match message {
             Message::Frame(now) => {
+                aura_anim::iced::frame(&mut self.runtime, now);
                 for spinner in &mut self.spinners {
                     spinner.advance(now);
                 }
@@ -80,7 +79,7 @@ impl Demo {
                     ThemeMode::Dark => ThemeMode::Light,
                 };
 
-                cx.toggle_theme();
+                UpdateCx::new(&mut self.runtime, &mut self.context).toggle_theme();
             }
         }
 

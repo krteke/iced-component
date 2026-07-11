@@ -174,12 +174,12 @@ impl IconButton {
         self.button.update(signal, cx)
     }
 
-    /// Applies a button event and returns its application action, if any.
-    pub fn update_event<Action>(
+    /// Applies a rendered event and reports whether it activated the button.
+    pub fn update_event(
         &mut self,
-        event: ButtonEvent<Action>,
+        event: ButtonEvent,
         cx: &mut UpdateCx<'_>,
-    ) -> Result<Option<Action>, iced_component_core::anim::MotionError> {
+    ) -> Result<super::ButtonOutcome, iced_component_core::anim::MotionError> {
         self.button.update_event(event, cx)
     }
 
@@ -301,9 +301,8 @@ mod tests {
             let mut cx = UpdateCx::new(&mut runtime, &mut context);
             icon.update(ButtonSignal::HoverEnter, &mut cx).unwrap();
             assert_eq!(
-                icon.update_event(ButtonEvent::Pressed("open"), &mut cx)
-                    .unwrap(),
-                Some("open")
+                icon.update_event(ButtonEvent::Pressed, &mut cx).unwrap(),
+                crate::button::ButtonOutcome::Activated
             );
         }
 

@@ -11,8 +11,25 @@ pub enum ButtonSync {
     StyleChanged(StyleChange),
 }
 
+/// Logical pointer coordinates relative to a component's bounds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PointerPosition {
+    /// Horizontal offset in logical pixels.
+    pub x: f32,
+    /// Vertical offset in logical pixels.
+    pub y: f32,
+}
+
+impl PointerPosition {
+    /// Creates a logical pointer position.
+    #[must_use]
+    pub const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
 /// Theme-independent button interaction input.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ButtonSignal {
     /// Pointer entered the button.
     HoverEnter,
@@ -20,6 +37,8 @@ pub enum ButtonSignal {
     HoverExit,
     /// Pointer pressed the button.
     PressDown,
+    /// Pointer pressed the button at a logical position relative to its bounds.
+    PressDownAt(PointerPosition),
     /// Pointer released the button.
     PressUp,
     /// Keyboard focus entered the button.
@@ -32,13 +51,31 @@ pub enum ButtonSignal {
     Sync(ButtonSync),
 }
 
-/// Button interaction input or completed application action.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ButtonEvent<Action> {
+/// Button interaction input emitted by a rendered button.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ButtonEvent {
     /// A state or style synchronization signal.
     Signal(ButtonSignal),
-    /// A completed press action.
-    Pressed(Action),
+    /// A pointer press completed inside the button.
+    Pressed,
+}
+
+/// Result of applying a rendered button event.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ButtonOutcome {
+    /// The event did not activate the button.
+    #[default]
+    None,
+    /// The button accepted a completed press.
+    Activated,
+}
+
+impl ButtonOutcome {
+    /// Returns whether the event activated the button.
+    #[must_use]
+    pub const fn is_activated(self) -> bool {
+        matches!(self, Self::Activated)
+    }
 }
 
 /// Theme-independent persistent button interaction state.
@@ -77,8 +114,10 @@ impl ButtonInteractionState {
                 self.pointer = PointerState::Outside;
                 self.pressed = false;
             }
-            ButtonSignal::PressDown if !self.disabled => self.pressed = true,
-            ButtonSignal::PressDown | ButtonSignal::Sync(_) => {}
+            ButtonSignal::PressDown | ButtonSignal::PressDownAt(_) if !self.disabled => {
+                self.pressed = true;
+            }
+            ButtonSignal::PressDown | ButtonSignal::PressDownAt(_) | ButtonSignal::Sync(_) => {}
             ButtonSignal::PressUp => self.pressed = false,
             ButtonSignal::Focus => self.focused = true,
             ButtonSignal::Blur => self.focused = false,
@@ -86,16 +125,20 @@ impl ButtonInteractionState {
         }
     }
 
-    /// Applies an event and returns its application action when enabled.
-    pub fn apply_event<Action>(&mut self, event: ButtonEvent<Action>) -> Option<Action> {
+    /// Applies a rendered event and reports a completed enabled activation.
+    pub fn apply_event(&mut self, event: ButtonEvent) -> ButtonOutcome {
         match event {
             ButtonEvent::Signal(signal) => {
                 self.apply(signal);
-                None
+                ButtonOutcome::None
             }
-            ButtonEvent::Pressed(action) => {
+            ButtonEvent::Pressed => {
                 self.pressed = false;
-                (!self.disabled).then_some(action)
+                if self.disabled {
+                    ButtonOutcome::None
+                } else {
+                    ButtonOutcome::Activated
+                }
             }
         }
     }
@@ -136,7 +179,9 @@ impl ButtonInteractionState {
 
 #[cfg(test)]
 mod tests {
-    use super::{ButtonEvent, ButtonInteractionState, ButtonSignal};
+    use super::{
+        ButtonEvent, ButtonInteractionState, ButtonOutcome, ButtonSignal, PointerPosition,
+    };
 
     #[test]
     fn disabling_clears_transient_interaction_state() {
@@ -154,24 +199,33 @@ mod tests {
     }
 
     #[test]
-    fn disabled_button_does_not_emit_actions() {
+    fn disabled_button_does_not_activate() {
         let mut state = ButtonInteractionState::new();
 
         state.apply(ButtonSignal::SetDisabled(true));
 
-        assert_eq!(state.apply_event(ButtonEvent::Pressed("save")), None);
+        assert_eq!(state.apply_event(ButtonEvent::Pressed), ButtonOutcome::None);
     }
 
     #[test]
-    fn completed_action_releases_the_pressed_state() {
+    fn completed_press_releases_the_pressed_state() {
         let mut state = ButtonInteractionState::new();
 
         state.apply(ButtonSignal::PressDown);
 
         assert_eq!(
-            state.apply_event(ButtonEvent::Pressed("save")),
-            Some("save")
+            state.apply_event(ButtonEvent::Pressed),
+            ButtonOutcome::Activated
         );
         assert!(!state.is_pressed());
+    }
+
+    #[test]
+    fn positioned_press_sets_the_pressed_state() {
+        let mut state = ButtonInteractionState::new();
+
+        state.apply(ButtonSignal::PressDownAt(PointerPosition::new(12.0, 8.0)));
+
+        assert!(state.is_pressed());
     }
 }

@@ -3,6 +3,8 @@
 mod context;
 mod macros;
 
+/// Typed application-level animation overrides.
+pub mod animation;
 /// Theme-independent button interaction protocol and state.
 pub mod button;
 

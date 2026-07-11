@@ -10,6 +10,7 @@ mod style;
 mod tests;
 mod view;
 
+use aura_anim::core::{interpolate::InterpolationProgress, traits::Interpolate};
 use iced::Length;
 use iced_component_core::{
     anim::{MotionError, MotionRuntime},
@@ -21,7 +22,9 @@ use crate::context::{Context, UpdateCx, ViewCx};
 
 pub use animation::{ButtonAnimationBuilder, ButtonAnimations, adwaita_button_timing};
 pub use content::{ButtonContent, ButtonContentLayout};
-pub use iced_component_core::component::button::{ButtonEvent, ButtonSignal, ButtonSync};
+pub use iced_component_core::component::button::{
+    ButtonEvent, ButtonOutcome, ButtonSignal, ButtonSync,
+};
 pub use motion::{ButtonMotion, ButtonMotionTransition};
 use state::ButtonStateExt as _;
 pub use style::{
@@ -327,20 +330,20 @@ impl Button {
         self.update(ButtonSignal::SetDisabled(disabled), cx)
     }
 
-    /// Applies a button event and returns its application action, if any.
-    pub fn update_event<Action>(
+    /// Applies a rendered button event and reports whether it activated the button.
+    pub fn update_event(
         &mut self,
-        event: ButtonEvent<Action>,
+        event: ButtonEvent,
         cx: &mut UpdateCx<'_>,
-    ) -> Result<Option<Action>, MotionError> {
+    ) -> Result<ButtonOutcome, MotionError> {
         let previous = self.state;
         #[cfg(feature = "tracing")]
         let event_name = button_event_name(&event);
         let signal = match &event {
             ButtonEvent::Signal(signal) => *signal,
-            ButtonEvent::Pressed(_) => ButtonSignal::PressUp,
+            ButtonEvent::Pressed => ButtonSignal::PressUp,
         };
-        let action = self.state.apply_event(event);
+        let outcome = self.state.apply_event(event);
 
         let changed = match signal {
             ButtonSignal::Sync(sync) => self.sync_with(sync, cx)?,
@@ -355,11 +358,11 @@ impl Button {
             from = ?previous.style_state(),
             to = ?self.state.style_state(),
             changed,
-            action_emitted = action.is_some(),
+            activated = outcome.is_activated(),
             "button"
         );
 
-        Ok(action)
+        Ok(outcome)
     }
 
     /// Returns the raw runtime motion value, or `None` if not registered.
@@ -441,6 +444,21 @@ impl Button {
     }
 
     fn motion_value_for_context(&self, cx: &ViewCx<'_>) -> Result<ButtonMotion, MotionError> {
+        if let Some(transition) = cx.style_transition() {
+            let from = self
+                .motion
+                .value(cx.runtime())?
+                .copied()
+                .unwrap_or_else(|| self.motion_from_theme(transition.from, self.state));
+            let to = self.motion_from_context(cx.context());
+
+            return Ok(ButtonMotion::interpolate_progress(
+                &from,
+                &to,
+                InterpolationProgress::new(transition.progress),
+            ));
+        }
+
         Ok(self
             .motion
             .value_if_current(cx.runtime(), cx.style_revision())?
@@ -506,8 +524,16 @@ impl Button {
     }
 
     fn motion_from_state(&self, context: &Context, state: ButtonInteractionState) -> ButtonMotion {
+        self.motion_from_theme(context.theme().pack(), state)
+    }
+
+    fn motion_from_theme(
+        &self,
+        theme: &crate::theme::ThemePack,
+        state: ButtonInteractionState,
+    ) -> ButtonMotion {
         ButtonMotion::from_theme(
-            context.theme().pack(),
+            theme,
             self.variant,
             self.style_override,
             state.style_state(),
@@ -525,11 +551,7 @@ impl Button {
             return Ok(false);
         }
 
-        let initial = self
-            .motion
-            .value_if_current(cx.runtime(), cx.style_revision())?
-            .copied()
-            .unwrap_or_else(|| self.motion_from_state(cx.context(), previous));
+        let initial = self.motion_value_for_update(cx, previous)?;
         let target = self.motion_from_context(cx.context());
 
         self.play_motion(
@@ -547,11 +569,7 @@ impl Button {
         sync: ButtonSync,
         cx: &mut UpdateCx<'_>,
     ) -> Result<bool, MotionError> {
-        let initial = self
-            .motion
-            .value(cx.runtime())?
-            .copied()
-            .unwrap_or_else(|| self.motion_from_context(cx.context()));
+        let initial = self.motion_value_for_update(cx, self.state)?;
         let target = self.motion_from_context(cx.context());
 
         self.play_motion(
@@ -570,7 +588,8 @@ impl Button {
         cx: &mut UpdateCx<'_>,
     ) -> Result<bool, MotionError> {
         let signal = transition.signal;
-        let animation = cx.button_animations().build(transition);
+        let animation =
+            ButtonAnimations::build_with_overrides(cx.animation_overrides(), transition);
         let mut core = cx.core();
 
         let changed = self.motion.play(animation, &mut core)?;
@@ -588,6 +607,33 @@ impl Button {
 
         Ok(changed)
     }
+
+    fn motion_value_for_update(
+        &self,
+        cx: &UpdateCx<'_>,
+        state: ButtonInteractionState,
+    ) -> Result<ButtonMotion, MotionError> {
+        if let Some(transition) = cx.style_transition() {
+            let from = self
+                .motion
+                .value(cx.runtime())?
+                .copied()
+                .unwrap_or_else(|| self.motion_from_theme(transition.from, state));
+            let to = self.motion_from_state(cx.context(), state);
+
+            return Ok(ButtonMotion::interpolate_progress(
+                &from,
+                &to,
+                InterpolationProgress::new(transition.progress),
+            ));
+        }
+
+        Ok(self
+            .motion
+            .value_if_current(cx.runtime(), cx.style_revision())?
+            .copied()
+            .unwrap_or_else(|| self.motion_from_state(cx.context(), state)))
+    }
 }
 
 impl Default for Button {
@@ -597,18 +643,19 @@ impl Default for Button {
 }
 
 #[cfg(feature = "tracing")]
-fn button_event_name<Action>(event: &ButtonEvent<Action>) -> &'static str {
+fn button_event_name(event: &ButtonEvent) -> &'static str {
     match event {
         ButtonEvent::Signal(ButtonSignal::HoverEnter) => "hover_enter",
         ButtonEvent::Signal(ButtonSignal::HoverExit) => "hover_exit",
         ButtonEvent::Signal(ButtonSignal::PressDown) => "press_down",
+        ButtonEvent::Signal(ButtonSignal::PressDownAt(_)) => "press_down_at",
         ButtonEvent::Signal(ButtonSignal::PressUp) => "press_up",
         ButtonEvent::Signal(ButtonSignal::Focus) => "focus",
         ButtonEvent::Signal(ButtonSignal::Blur) => "blur",
         ButtonEvent::Signal(ButtonSignal::SetDisabled(true)) => "disable",
         ButtonEvent::Signal(ButtonSignal::SetDisabled(false)) => "enable",
         ButtonEvent::Signal(ButtonSignal::Sync(_)) => "sync",
-        ButtonEvent::Pressed(_) => "pressed",
+        ButtonEvent::Pressed => "pressed",
     }
 }
 

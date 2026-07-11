@@ -1,4 +1,4 @@
-use aura_anim::prelude::Duration;
+use aura_anim::prelude::{Duration, Timing};
 use float_cmp::assert_approx_eq;
 use iced::Length;
 use iced_component_core::anim::MotionRuntime;
@@ -9,7 +9,9 @@ use crate::{
     context::{UpdateCx, ViewCx},
 };
 
-use super::{Button, ButtonContentLayout, ButtonSignal, ButtonStyleState, ButtonSync};
+use super::{
+    Button, ButtonAnimations, ButtonContentLayout, ButtonSignal, ButtonStyleState, ButtonSync,
+};
 
 #[test]
 fn unregistered_snapshot_resolves_current_theme() {
@@ -84,7 +86,39 @@ fn registered_interaction_animates_to_target_state() {
 }
 
 #[test]
-fn stale_theme_revision_falls_back_to_current_theme_tokens() {
+fn typed_animation_override_controls_button_interactions() {
+    let mut runtime = MotionRuntime::new();
+    let mut context = Context::light();
+    let mut button = Button::new("Save");
+    let target = "#0000061f".parse::<Color>().unwrap();
+
+    {
+        let mut update = UpdateCx::new(&mut runtime, &mut context);
+        update.set_animation_override(ButtonAnimations::tween(
+            Timing::linear(1_000.0),
+            Timing::linear(1_000.0),
+        ));
+        button.register(&mut update);
+        button
+            .update(ButtonSignal::HoverEnter, &mut update)
+            .unwrap();
+    }
+
+    runtime.tick(Duration::from_millis(200.0));
+    assert_ne!(
+        button.motion_value(&runtime).unwrap().unwrap().tokens.bg,
+        target
+    );
+
+    runtime.tick(Duration::from_millis(800.0));
+    assert_eq!(
+        button.motion_value(&runtime).unwrap().unwrap().tokens.bg,
+        target
+    );
+}
+
+#[test]
+fn theme_transition_starts_from_the_previous_theme_tokens() {
     let mut runtime = MotionRuntime::new();
     let mut context = Context::light();
     let mut button = Button::new("Save");
@@ -106,6 +140,13 @@ fn stale_theme_revision_falls_back_to_current_theme_tokens() {
 
     assert_eq!(
         snapshot.style.background,
+        "#00000614".parse::<Color>().unwrap()
+    );
+
+    runtime.tick(Duration::from_millis(200.0));
+    let view = ViewCx::new(&runtime, &context);
+    assert_eq!(
+        button.snapshot(&view).unwrap().style.background,
         "#ffffff26".parse::<Color>().unwrap()
     );
 }
@@ -150,7 +191,7 @@ fn sync_after_theme_revision_uses_stale_runtime_value_as_start() {
 }
 
 #[test]
-fn interaction_after_stale_theme_starts_from_current_visible_tokens() {
+fn interaction_during_style_transition_starts_from_the_visible_value() {
     let mut runtime = MotionRuntime::new();
     let mut context = Context::light();
     let mut button = Button::new("Save");
@@ -169,13 +210,17 @@ fn interaction_after_stale_theme_starts_from_current_visible_tokens() {
         update.patch_theme(|theme| {
             theme.button.standard.hover.bg = new_hover;
         });
+    }
+    let visible = button
+        .snapshot(&ViewCx::new(&runtime, &context))
+        .unwrap()
+        .motion;
+    {
+        let mut update = UpdateCx::new(&mut runtime, &mut context);
         button.update(ButtonSignal::PressDown, &mut update).unwrap();
     }
 
-    assert_eq!(
-        button.motion_value(&runtime).unwrap().unwrap().tokens.bg,
-        new_hover
-    );
+    assert_eq!(button.motion_value(&runtime).unwrap().unwrap(), visible);
 }
 
 #[test]

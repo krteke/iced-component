@@ -4,6 +4,7 @@ use aura_anim::{
     core::traits::BoxAnimation,
     prelude::{AnimationExt, Easing, Timing, Tween},
 };
+use iced_component_core::component::animation::AnimationOverrides;
 
 use crate::button::{ButtonMotion, ButtonMotionTransition, ButtonSignal};
 
@@ -56,12 +57,26 @@ impl ButtonAnimations {
             _ => (self.interaction)(transition),
         }
     }
+
+    pub(crate) fn build_with_overrides(
+        overrides: &AnimationOverrides,
+        transition: ButtonMotionTransition,
+    ) -> BoxAnimation<ButtonMotion> {
+        overrides.get::<Self>().map_or_else(
+            || default_animation(transition),
+            |animations| animations.build(transition),
+        )
+    }
 }
 
 impl Default for ButtonAnimations {
     fn default() -> Self {
         Self::tween(adwaita_button_timing(200.0), adwaita_button_timing(200.0))
     }
+}
+
+fn default_animation(transition: ButtonMotionTransition) -> BoxAnimation<ButtonMotion> {
+    Tween::between(transition.from, transition.to, adwaita_button_timing(200.0)).boxed()
 }
 
 fn tween_builder(timing: Timing) -> impl Fn(ButtonMotionTransition) -> BoxAnimation<ButtonMotion> {
