@@ -14,13 +14,11 @@ use crate::{
     },
 };
 
-/// Animatable visual values for an Adwaita button.
+/// Animatable visual values for an adwaita-like button.
 #[derive(Clone, Copy, Debug, PartialEq, Animatable)]
 pub struct ButtonMotion {
     /// Animated theme component tokens for the current state.
     pub tokens: ButtonTokens,
-    /// Width of the focus ring in logical pixels.
-    pub focus_ring_width: f32,
 }
 
 /// Data passed to animation providers and builders.
@@ -40,16 +38,11 @@ impl ButtonMotion {
         variant: ButtonVariant,
         overrides: ButtonStyleOverride,
         state: ButtonStyleState,
-        focused: bool,
+        _focused: bool,
     ) -> Self {
-        Self {
-            tokens: component_tokens_from_theme(theme, variant, overrides, state),
-            focus_ring_width: if focused && !matches!(state, ButtonStyleState::Disabled) {
-                2.0
-            } else {
-                0.0
-            },
-        }
+        let tokens = component_tokens_from_theme(theme, variant, overrides, state);
+
+        Self { tokens }
     }
 }
 
@@ -61,7 +54,6 @@ impl Interpolate for ButtonTokens {
             border: interpolate::color(from.border, to.border, progress),
             border_width: interpolate::length(from.border_width, to.border_width, progress),
             radius: interpolate::radius(from.radius, to.radius, progress),
-            focus_ring: interpolate::color(from.focus_ring, to.focus_ring, progress),
         }
     }
 }

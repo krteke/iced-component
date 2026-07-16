@@ -7,6 +7,8 @@ use crate::{
     context::ColorScheme,
 };
 
+mod loading_indicator;
+
 /// Adapter marker for the `iced-adwaita` backend.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AdwaitaBackend;

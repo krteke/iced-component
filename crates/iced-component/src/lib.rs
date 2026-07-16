@@ -6,5 +6,7 @@ pub mod backend;
 pub mod button;
 /// Runtime context used to select and configure a themed backend.
 pub mod context;
+/// Theme-native loading indicator adapter.
+pub mod loading_indicator;
 
 pub use iced_component_core as core;

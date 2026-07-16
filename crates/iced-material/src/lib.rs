@@ -5,5 +5,7 @@ pub use iced_component_core as core;
 pub mod button;
 /// Shared Material component context.
 pub mod context;
+/// Material 3 expressive loading indicator.
+pub mod loading_indicator;
 /// Material theme tokens and loading errors.
 pub mod theme;

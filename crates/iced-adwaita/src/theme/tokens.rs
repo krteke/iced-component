@@ -31,12 +31,16 @@ define_theme_tokens! {
             border: Color,
             border_width: Length,
             radius: Radius,
-            focus_ring: Color,
         }
         #[derive(Copy, Debug, PartialEq)]
         component SpinnerTokens {
-            color: Color,
+            foreground: Color,
+            track: Color,
             size: Length,
+            minimum_size: Length,
+            maximum_size: Length,
+            minimum_stroke: Length,
+            maximum_stroke: Length,
         }
         button {
             min_width: Length,
@@ -53,8 +57,15 @@ define_theme_tokens! {
 
             shape {
                 rounded { radius: Radius }
-                pill { radius: Radius }
-                circular { radius: Radius }
+                pill {
+                    radius: Radius,
+                    padding_x: Length,
+                    padding_y: Length,
+                }
+                circular {
+                    radius: Radius,
+                    size: Length,
+                }
             }
             states standard: ButtonTokens {
                 idle,

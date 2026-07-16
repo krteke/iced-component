@@ -1,4 +1,7 @@
-//! Stateful Adwaita button primitives.
+//! Stateful independent adwaita-like button primitives.
+//!
+//! These components are independently implemented and are not produced by,
+//! affiliated with, or endorsed by GNOME or libadwaita.
 
 mod animation;
 mod content;
@@ -20,7 +23,7 @@ use spectrum_theme::Color;
 
 use crate::context::{Context, UpdateCx, ViewCx};
 
-pub use animation::{ButtonAnimationBuilder, ButtonAnimations, adwaita_button_timing};
+pub use animation::{ButtonAnimationBuilder, ButtonAnimations, profile_button_timing};
 pub use content::{ButtonContent, ButtonContentLayout};
 pub use iced_component_core::component::button::{
     ButtonEvent, ButtonOutcome, ButtonSignal, ButtonSync,
@@ -33,7 +36,7 @@ pub use style::{
 };
 pub use view::ButtonView;
 
-/// Stateful Adwaita button core without Iced content rendering.
+/// Stateful adwaita-like button core without Iced content rendering.
 #[derive(Debug)]
 pub struct Button {
     content: ButtonContent,
@@ -44,7 +47,7 @@ pub struct Button {
     motion: MotionSlot<ButtonMotion>,
 }
 
-/// Stable layout inputs for an Adwaita button.
+/// Stable layout inputs for an adwaita-like button.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonLayout {
     /// Content-specific layout class override.
@@ -60,7 +63,7 @@ pub struct ButtonLayout {
 }
 
 impl Button {
-    /// Creates a standard Adwaita button core with an unregistered motion slot.
+    /// Creates a standard adwaita-like button with an unregistered motion slot.
     #[must_use]
     pub fn new(content: impl Into<ButtonContent>) -> Self {
         Self {
@@ -73,19 +76,19 @@ impl Button {
         }
     }
 
-    /// Creates an empty standard Adwaita button core.
+    /// Creates an empty standard adwaita-like button.
     #[must_use]
     pub fn empty() -> Self {
         Self::new(ButtonContent::Empty)
     }
 
-    /// Creates a suggested-action Adwaita button.
+    /// Creates a suggested-action adwaita-like button.
     #[must_use]
     pub fn suggested(content: impl Into<ButtonContent>) -> Self {
         Self::new(content).with_variant(ButtonVariant::SUGGESTED)
     }
 
-    /// Creates a destructive-action Adwaita button.
+    /// Creates a destructive-action adwaita-like button.
     #[must_use]
     pub fn destructive(content: impl Into<ButtonContent>) -> Self {
         Self::new(content).with_variant(ButtonVariant::DESTRUCTIVE)
@@ -236,7 +239,7 @@ impl Button {
         self
     }
 
-    /// Registers the button motion handle using the current Adwaita context.
+    /// Registers the button motion handle using the current profile context.
     pub fn register(&mut self, cx: &mut UpdateCx<'_>) {
         if self.motion.is_registered() {
             #[cfg(feature = "tracing")]
@@ -411,7 +414,7 @@ impl Button {
         self.layout
     }
 
-    /// Returns the resolved Adwaita content layout class.
+    /// Returns the resolved profile content layout class.
     #[must_use]
     pub fn content_layout(&self) -> ButtonContentLayout {
         self.layout
@@ -506,10 +509,15 @@ impl Button {
                     default_padding_y,
                 ),
             },
-            ButtonShape::Pill => (None, None, 32.0, 10.0),
+            ButtonShape::Pill => (
+                None,
+                None,
+                theme.button.shape.pill.padding_x.value(),
+                theme.button.shape.pill.padding_y.value(),
+            ),
             ButtonShape::Circular => (
-                Some(Length::Fixed(34.0)),
-                Some(Length::Fixed(34.0)),
+                Some(Length::Fixed(theme.button.shape.circular.size.value())),
+                Some(Length::Fixed(theme.button.shape.circular.size.value())),
                 0.0,
                 0.0,
             ),

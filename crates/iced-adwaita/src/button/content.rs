@@ -1,4 +1,4 @@
-/// Stable content stored by an Adwaita button.
+/// Stable content stored by an adwaita-like button.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub enum ButtonContent {
     /// No stored content.
@@ -26,17 +26,17 @@ impl ButtonContent {
     }
 }
 
-/// Adwaita button content layout class.
+/// Content layout category used by the profile button metrics.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ButtonContentLayout {
-    /// Base button layout, matching a button without content-specific classes.
+    /// Base button layout without content-specific spacing adjustments.
     #[default]
     Plain,
-    /// Text button layout, matching `.text-button`.
+    /// Text button layout.
     Text,
-    /// Image button layout, matching `.image-button`.
+    /// Image button layout.
     Image,
-    /// Image and text layout, matching `.image-text-button`.
+    /// Image and text layout.
     ImageText,
 }
 

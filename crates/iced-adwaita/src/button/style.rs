@@ -5,34 +5,34 @@ use crate::theme::tokens::{
     ButtonTokens, ThemePack,
 };
 
-/// Semantic role for resolving Adwaita button style.
+/// Semantic role for resolving an adwaita-like button style.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ButtonRole {
-    /// Neutral action, matching a regular Adwaita `button`.
+    /// Neutral action using the profile's regular treatment.
     Standard,
-    /// Recommended action, matching `.suggested-action`.
+    /// Recommended action using the profile's accent treatment.
     Suggested,
-    /// Dangerous or destructive action, matching `.destructive-action`.
+    /// Dangerous or destructive action using the profile's warning treatment.
     Destructive,
 }
 
-/// Visual treatment for an Adwaita button.
+/// Visual treatment for an adwaita-like button.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ButtonTreatment {
     /// Regular raised-looking button surface.
     Regular,
-    /// Minimal flat treatment, matching `.flat`.
+    /// Minimal flat treatment.
     Flat,
 }
 
 /// Button outline shape.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ButtonShape {
-    /// Rounded rectangle shape using Adwaita's regular button radius.
+    /// Rounded rectangle shape using the profile's regular button radius.
     Rounded,
-    /// Fully rounded capsule shape, matching `.pill`.
+    /// Fully rounded capsule shape.
     Pill,
-    /// Fully rounded icon-style shape, matching `.circular`.
+    /// Fully rounded icon-style shape.
     Circular,
 }
 
@@ -48,7 +48,7 @@ pub struct ButtonVariant {
 }
 
 impl ButtonVariant {
-    /// Standard Adwaita button variant.
+    /// Standard profile button variant.
     pub const STANDARD: Self = Self::new(
         ButtonRole::Standard,
         ButtonTreatment::Regular,
@@ -118,8 +118,6 @@ pub struct ButtonStyleOverride {
     pub border_width: Option<Length>,
     /// Radius override.
     pub radius: Option<Radius>,
-    /// Focus ring color override.
-    pub focus_ring: Option<Color>,
 }
 
 impl ButtonStyleOverride {
@@ -131,7 +129,6 @@ impl ButtonStyleOverride {
             && self.border.is_none()
             && self.border_width.is_none()
             && self.radius.is_none()
-            && self.focus_ring.is_none()
     }
 
     pub(crate) fn apply(self, mut tokens: ButtonTokens) -> ButtonTokens {
@@ -150,15 +147,11 @@ impl ButtonStyleOverride {
         if let Some(radius) = self.radius {
             tokens.radius = radius;
         }
-        if let Some(focus_ring) = self.focus_ring {
-            tokens.focus_ring = focus_ring;
-        }
-
         tokens
     }
 }
 
-/// Visual state used to resolve Adwaita button tokens.
+/// Visual state used to resolve profile button tokens.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ButtonStyleState {
     /// Resting button state.
@@ -222,12 +215,10 @@ pub struct ButtonResolvedStyle {
     pub border_width: Length,
     /// Button corner radius.
     pub radius: Radius,
-    /// Focus ring color.
-    pub focus_ring: Color,
 }
 
 impl ButtonResolvedStyle {
-    /// Resolves the current standard Adwaita button style from a theme pack.
+    /// Resolves the current standard profile button style from a theme pack.
     #[must_use]
     pub fn standard(theme: &ThemePack, state: ButtonStyleState) -> Self {
         Self::from_theme(
@@ -258,7 +249,6 @@ impl ButtonResolvedStyle {
             border: tokens.border,
             border_width: tokens.border_width,
             radius: tokens.radius,
-            focus_ring: tokens.focus_ring,
         }
     }
 }

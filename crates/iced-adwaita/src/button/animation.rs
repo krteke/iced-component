@@ -8,10 +8,12 @@ use iced_component_core::component::animation::AnimationOverrides;
 
 use crate::button::{ButtonMotion, ButtonMotionTransition, ButtonSignal};
 
+const DEFAULT_PROFILE_BUTTON_DURATION_MS: f32 = 180.0;
+
 /// A function that builds one button animation from a resolved transition.
 pub type ButtonAnimationBuilder = Arc<dyn Fn(ButtonMotionTransition) -> BoxAnimation<ButtonMotion>>;
 
-/// Runtime-configurable Adwaita button animations.
+/// Runtime-configurable adwaita-like button animations.
 #[derive(Clone)]
 pub struct ButtonAnimations {
     interaction: ButtonAnimationBuilder,
@@ -71,54 +73,33 @@ impl ButtonAnimations {
 
 impl Default for ButtonAnimations {
     fn default() -> Self {
-        Self::tween(adwaita_button_timing(200.0), adwaita_button_timing(200.0))
+        Self::tween(
+            profile_button_timing(DEFAULT_PROFILE_BUTTON_DURATION_MS),
+            profile_button_timing(DEFAULT_PROFILE_BUTTON_DURATION_MS),
+        )
     }
 }
 
 fn default_animation(transition: ButtonMotionTransition) -> BoxAnimation<ButtonMotion> {
-    Tween::between(transition.from, transition.to, adwaita_button_timing(200.0)).boxed()
+    Tween::between(
+        transition.from,
+        transition.to,
+        profile_button_timing(DEFAULT_PROFILE_BUTTON_DURATION_MS),
+    )
+    .boxed()
 }
 
 fn tween_builder(timing: Timing) -> impl Fn(ButtonMotionTransition) -> BoxAnimation<ButtonMotion> {
     move |transition| Tween::between(transition.from, transition.to, timing).boxed()
 }
 
-/// Adwaita-style button timing with a configurable duration.
+/// Profile button timing with a configurable duration.
+///
+/// This uses a standard ease-out curve and is intentionally independent from
+/// any toolkit-private animation definition.
 #[must_use]
-pub fn adwaita_button_timing(duration_ms: f32) -> Timing {
-    Timing::new(duration_ms).with_easing(Easing::Custom(adwaita_ease_out_quad))
-}
-
-fn adwaita_ease_out_quad(progress: f32) -> f32 {
-    cubic_bezier_y_for_x(progress, 0.25, 0.46, 0.45, 0.94)
-}
-
-fn cubic_bezier_y_for_x(x: f32, x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
-    let x = x.clamp(0.0, 1.0);
-    let mut low = 0.0;
-    let mut high = 1.0;
-    let mut t = x;
-
-    for _ in 0..16 {
-        let estimate = cubic_bezier(t, x1, x2);
-        if (estimate - x).abs() < 0.000_001 {
-            break;
-        }
-        if estimate < x {
-            low = t;
-        } else {
-            high = t;
-        }
-        t = (low + high) * 0.5;
-    }
-
-    cubic_bezier(t, y1, y2)
-}
-
-fn cubic_bezier(t: f32, p1: f32, p2: f32) -> f32 {
-    let inv = 1.0 - t;
-
-    3.0 * inv * inv * t * p1 + 3.0 * inv * t * t * p2 + t * t * t
+pub fn profile_button_timing(duration_ms: f32) -> Timing {
+    Timing::new(duration_ms).with_easing(Easing::EaseOut)
 }
 
 #[cfg(test)]
@@ -126,16 +107,13 @@ mod tests {
     use aura_anim::prelude::Easing;
     use float_cmp::assert_approx_eq;
 
-    use super::{adwaita_button_timing, adwaita_ease_out_quad};
+    use super::profile_button_timing;
 
     #[test]
-    fn adwaita_button_timing_keeps_css_curve_with_configurable_duration() {
-        let timing = adwaita_button_timing(125.0);
+    fn profile_button_timing_uses_configurable_ease_out_duration() {
+        let timing = profile_button_timing(125.0);
 
         assert_approx_eq!(f64, timing.duration().as_millis(), 125.0);
-        assert!(matches!(timing.easing(), Easing::Custom(_)));
-        assert_approx_eq!(f32, adwaita_ease_out_quad(0.0), 0.0);
-        assert_approx_eq!(f32, adwaita_ease_out_quad(1.0), 1.0);
-        assert!(adwaita_ease_out_quad(0.5) > 0.5);
+        assert!(matches!(timing.easing(), Easing::EaseOut));
     }
 }

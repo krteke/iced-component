@@ -1,9 +1,11 @@
+# Independent adwaita-like visual profile for Iced. It is not produced by,
+# affiliated with, or endorsed by GNOME or libadwaita.
 [meta]
-name = "Adwaita Dark"
+name = "Adwaita-like Dark"
 mode = "dark"
-author = "GNOME libadwaita reference values"
+author = ""
 version = "0.1.0"
-description = "Adwaita dark colors used by currently implemented Iced Adwaita components."
+description = "Independent adwaita-like dark profile for currently implemented Iced components; no GNOME or libadwaita endorsement is implied."
 
 [app.window]
 bg = "#222226"
@@ -36,9 +38,12 @@ radius = "9px"
 
 [button.shape.pill]
 radius = "9999px"
+padding_x = "28px"
+padding_y = "9px"
 
 [button.shape.circular]
 radius = "9999px"
+size = "36px"
 
 [button.standard.idle]
 bg = "#ffffff1a"
@@ -46,7 +51,6 @@ fg = "{app.window.fg}"
 border = "#00000000"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f180"
 
 [button.standard.hover]
 bg = "#ffffff26"
@@ -60,7 +64,6 @@ fg = "{button.standard.idle.fg}"
 border = "{button.standard.idle.border}"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f100"
 
 [button.flat.idle]
 bg = "#00000000"
@@ -68,7 +71,6 @@ fg = "{app.window.fg}"
 border = "#00000000"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f180"
 
 [button.flat.hover]
 bg = "#ffffff12"
@@ -82,7 +84,6 @@ fg = "#ffffff4d"
 border = "#00000000"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f100"
 
 [button.suggested.idle]
 bg = "{accent.bg}"
@@ -90,7 +91,6 @@ fg = "{accent.fg}"
 border = "#00000000"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f180"
 
 [button.suggested.hover]
 bg = "#4990e7"
@@ -104,7 +104,6 @@ fg = "#ffffff80"
 border = "#00000000"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f100"
 
 [button.destructive.idle]
 bg = "#ff7b6326"
@@ -112,7 +111,6 @@ fg = "#ff7b63"
 border = "#00000000"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f180"
 
 [button.destructive.hover]
 bg = "#ff7b6333"
@@ -126,8 +124,12 @@ fg = "#ff7b637a"
 border = "#00000000"
 border_width = "0px"
 radius = "9px"
-focus_ring = "#99c1f100"
 
 [spinner]
-color = "#ffffffe6"
+foreground = "#f0f0f0"
+track = "#3d3d42"
 size = "16px"
+minimum_size = "12px"
+maximum_size = "72px"
+minimum_stroke = "2px"
+maximum_stroke = "7px"

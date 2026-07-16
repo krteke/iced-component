@@ -1354,6 +1354,7 @@ dependencies = [
  "iced-adwaita",
  "iced-component-core",
  "iced-material",
+ "spectrum-theme",
 ]
 
 [[package]]

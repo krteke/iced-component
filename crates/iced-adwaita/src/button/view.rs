@@ -1,4 +1,4 @@
-//! Iced view builder for Adwaita buttons.
+//! Iced view builder for adwaita-like buttons.
 
 use iced::{
     Background, Border, Element, Font, Length, Padding, Shadow, alignment,

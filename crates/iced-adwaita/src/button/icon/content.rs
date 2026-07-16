@@ -7,7 +7,7 @@ use iced::{
 
 use super::IconSource;
 
-/// Icon and text content matching libadwaita's `AdwButtonContent` inside a button.
+/// Icon and text content arranged for the crate's adwaita-like button profile.
 #[derive(Clone, Debug)]
 pub struct IconTextContent {
     icon: IconSource,
@@ -16,7 +16,7 @@ pub struct IconTextContent {
 }
 
 impl IconTextContent {
-    /// Creates icon and text content for an Adwaita button.
+    /// Creates icon and text content for an adwaita-like button.
     #[must_use]
     pub fn new(icon: impl Into<IconSource>, label: impl Into<String>) -> Self {
         Self {

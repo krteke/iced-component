@@ -1,12 +1,16 @@
-//! Adwaita theme implementation for `iced-component`.
+//! Independent adwaita-like theme implementation for `iced-component`.
+//!
+//! This crate is not produced by, affiliated with, or endorsed by GNOME or
+//! libadwaita. It provides an independently implemented Iced theme whose
+//! default visual direction targets broad compatibility with Adwaita-like apps.
 
-/// Adwaita button component primitives.
+/// Adwaita-like button component primitives.
 pub mod button;
-/// Shared Adwaita component context.
+/// Shared adwaita-like component context.
 pub mod context;
-/// Adwaita spinner rendering primitives.
+/// Adwaita-like spinner rendering primitives.
 pub mod spinner;
-/// Adwaita theme tokens and style provider.
+/// Adwaita-like theme tokens and style provider.
 pub mod theme;
 
 pub use context::Context;

@@ -1,4 +1,4 @@
-//! Adwaita icon button component.
+//! Adwaita-like icon button component.
 
 mod content;
 mod source;
@@ -18,7 +18,7 @@ pub use content::IconTextContent;
 pub use source::IconSource;
 pub use text_button::IconTextButton;
 
-/// Stateful Adwaita icon button backed by [`Button`].
+/// Stateful adwaita-like icon button backed by [`Button`].
 #[derive(Debug)]
 pub struct IconButton {
     button: Button,
@@ -27,7 +27,7 @@ pub struct IconButton {
 }
 
 impl IconButton {
-    /// Creates a standard Adwaita icon button.
+    /// Creates a standard profile icon button.
     #[must_use]
     pub fn new(icon: impl Into<IconSource>) -> Self {
         Self::from_button(icon, Button::empty())
@@ -279,16 +279,20 @@ mod tests {
     }
 
     #[test]
-    fn icon_button_uses_adwaita_image_button_layout() {
+    fn icon_button_uses_profile_image_layout_tokens() {
         let context = Context::light();
         let icon = IconButton::svg_static(TEST_ICON);
-        let (width, height, padding_x, padding_y) =
-            icon.button().resolved_layout(context.theme().pack());
+        let theme = context.theme().pack();
+        let (width, height, padding_x, padding_y) = icon.button().resolved_layout(theme);
+        let expected_width =
+            theme.button.image_min_width.value() + theme.button.image_padding_x.value() * 2.0;
+        let expected_height =
+            theme.button.min_height.value() + theme.button.padding_y.value() * 2.0;
 
-        assert_eq!(width, Some(Length::Fixed(34.0)));
-        assert_eq!(height, Some(Length::Fixed(34.0)));
-        assert_approx_eq!(f32, padding_x, 5.0);
-        assert_approx_eq!(f32, padding_y, 5.0);
+        assert_eq!(width, Some(Length::Fixed(expected_width)));
+        assert_eq!(height, Some(Length::Fixed(expected_height)));
+        assert_approx_eq!(f32, padding_x, theme.button.image_padding_x.value());
+        assert_approx_eq!(f32, padding_y, theme.button.padding_y.value());
     }
 
     #[test]

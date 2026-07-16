@@ -26,9 +26,14 @@ tracing = [
 
 [dev-dependencies]
 aura-anim.workspace = true
+spectrum-theme = { workspace = true, features = ["iced"] }
 
 [[example]]
 name = "adapter_button_demo"
+required-features = ["adwaita", "material"]
+
+[[example]]
+name = "adapter_loading_indicator_demo"
 required-features = ["adwaita", "material"]
 
 [lints]

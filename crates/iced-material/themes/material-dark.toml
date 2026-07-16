@@ -81,6 +81,12 @@ on_color_variant = "{material.on_tertiary_fixed_variant}"
 shadow = "{material.shadow}"
 scrim = "{material.scrim}"
 
+[loading_indicator]
+size = "48px"
+active = "{palette.primary.color}"
+container = "{palette.primary.container}"
+contained_active = "{palette.primary.on_container}"
+
 [button]
 container_height = "40px"
 corner_radius = "9999px"

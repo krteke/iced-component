@@ -1,4 +1,4 @@
-//! Visual demo for the Adwaita spinner component.
+//! Visual demo for the independent adwaita-like spinner component.
 
 use iced::{
     Background, Element, Length, Size, Subscription, Task, Theme,
@@ -16,7 +16,7 @@ use spectrum_theme::iced::IcedColorAdapter;
 
 fn main() -> iced::Result {
     iced::application(Demo::default, Demo::update, Demo::view)
-        .title("Adwaita spinner demo")
+        .title("Adwaita-like spinner demo")
         .subscription(subscription)
         .theme(theme)
         .window(window::Settings {
@@ -103,7 +103,7 @@ impl Demo {
             ]
             .spacing(16)
             .align_y(iced::Alignment::Center),
-            row(self.spinners.map(|spinner| spinner.view(&view))).spacing(22),
+            row(self.spinners.iter().map(|spinner| spinner.view(&view))).spacing(22),
         ]
         .spacing(14)
         .align_x(iced::Alignment::Center);

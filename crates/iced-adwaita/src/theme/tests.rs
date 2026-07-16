@@ -11,7 +11,11 @@ fn embedded_light_theme_loads_from_toml() {
     assert_eq!(theme.app.window.fg, "#000006cc".parse::<Color>().unwrap());
     assert_eq!(theme.app.view.bg, "#ffffff".parse::<Color>().unwrap());
     assert_eq!(theme.app.view.fg, "#000006cc".parse::<Color>().unwrap());
-    assert_eq!(theme.spinner.color, "#00000670".parse::<Color>().unwrap());
+    assert_eq!(
+        theme.spinner.foreground,
+        "#8c8c90".parse::<Color>().unwrap()
+    );
+    assert_eq!(theme.spinner.track, "#eaeaeb".parse::<Color>().unwrap());
     assert_eq!(theme.accent.bg, "#3584e4".parse::<Color>().unwrap());
     assert_eq!(
         theme.button.standard.idle.bg,
@@ -29,7 +33,11 @@ fn embedded_dark_theme_loads_from_toml() {
     assert_eq!(theme.app.window.fg, "#ffffff".parse::<Color>().unwrap());
     assert_eq!(theme.app.view.bg, "#1d1d20".parse::<Color>().unwrap());
     assert_eq!(theme.app.view.fg, "#ffffff".parse::<Color>().unwrap());
-    assert_eq!(theme.spinner.color, "#ffffffe6".parse::<Color>().unwrap());
+    assert_eq!(
+        theme.spinner.foreground,
+        "#f0f0f0".parse::<Color>().unwrap()
+    );
+    assert_eq!(theme.spinner.track, "#3d3d42".parse::<Color>().unwrap());
     assert_eq!(theme.accent.color, "#99c1f1".parse::<Color>().unwrap());
     assert_eq!(
         theme.button.standard.pressed.bg,

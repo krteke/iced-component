@@ -2,6 +2,8 @@
 
 #[cfg(feature = "adwaita")]
 mod adwaita;
+/// Capability contract for themed loading indicators.
+pub mod loading_indicator;
 #[cfg(feature = "material")]
 mod material;
 

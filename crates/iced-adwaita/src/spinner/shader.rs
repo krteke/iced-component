@@ -1,4 +1,4 @@
-//! WGPU shader primitive for rendering Adwaita spinners.
+//! WGPU shader primitive for rendering independent adwaita-like spinners.
 
 use iced::{
     Color, Rectangle, wgpu,
@@ -7,16 +7,16 @@ use iced::{
 use iced_wgpu::{Primitive, primitive::Pipeline};
 use std::borrow::Cow;
 
-use super::SpinnerFrame;
+use super::SpinnerSample;
 
 const AA_SCALE: f32 = 0.6;
 const SPINNER_WGSL: &str = include_str!("spinner.wgsl");
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct SpinnerShader {
-    pub(super) frame: SpinnerFrame,
+    pub(super) sample: SpinnerSample,
     pub(super) diameter: f32,
-    pub(super) fg: Color,
+    pub(super) foreground: Color,
     pub(super) track: Color,
     pub(super) stroke_width: f32,
 }
@@ -37,10 +37,10 @@ impl<Message> Program<Message> for SpinnerShader {
             bounds_size: [bounds.width, bounds.height],
             radius: geometry.radius,
             stroke_width: geometry.stroke_width,
-            arc_start_radians: self.frame.arc_start_radians,
-            sweep_radians: self.frame.sweep_radians,
+            arc_start_radians: self.sample.arc_start_radians,
+            sweep_radians: self.sample.sweep_radians,
             aa_scale: AA_SCALE,
-            fg: rgba(self.fg),
+            fg: rgba(self.foreground),
             track: rgba(self.track),
         }
     }
@@ -158,19 +158,19 @@ pub(super) struct SpinnerPipeline {
 impl Pipeline for SpinnerPipeline {
     fn new(device: &wgpu::Device, _queue: &wgpu::Queue, format: wgpu::TextureFormat) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("adwaita spinner shader"),
+            label: Some("adwaita-like spinner shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(SPINNER_WGSL)),
         });
 
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("adwaita spinner uniform buffer"),
+            label: Some("adwaita-like spinner uniform buffer"),
             size: std::mem::size_of::<SpinnerUniforms>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("adwaita spinner bind group layout"),
+            label: Some("adwaita-like spinner bind group layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -184,7 +184,7 @@ impl Pipeline for SpinnerPipeline {
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("adwaita spinner bind group"),
+            label: Some("adwaita-like spinner bind group"),
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -193,13 +193,13 @@ impl Pipeline for SpinnerPipeline {
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("adwaita spinner pipeline layout"),
+            label: Some("adwaita-like spinner pipeline layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("adwaita spinner render pipeline"),
+            label: Some("adwaita-like spinner render pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,

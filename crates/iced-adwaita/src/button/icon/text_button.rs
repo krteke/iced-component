@@ -19,7 +19,7 @@ pub struct IconTextButton {
 }
 
 impl IconTextButton {
-    /// Creates a standard Adwaita icon and text button.
+    /// Creates a standard profile icon and text button.
     #[must_use]
     pub fn new(icon: impl Into<IconSource>, label: impl Into<String>) -> Self {
         Self::from_button(icon, label, Button::empty())
@@ -310,16 +310,18 @@ mod tests {
     }
 
     #[test]
-    fn icon_text_button_uses_libadwaita_image_text_padding() {
+    fn icon_text_button_uses_profile_image_text_padding() {
         let context = Context::light();
         let button = IconTextButton::svg_static(TEST_ICON, "Open");
-        let (width, height, padding_x, padding_y) =
-            button.button().resolved_layout(context.theme().pack());
+        let theme = context.theme().pack();
+        let (width, height, padding_x, padding_y) = button.button().resolved_layout(theme);
+        let expected_height =
+            theme.button.min_height.value() + theme.button.padding_y.value() * 2.0;
 
         assert_eq!(width, None);
-        assert_eq!(height, Some(Length::Fixed(34.0)));
-        assert_approx_eq!(f32, padding_x, 9.0);
-        assert_approx_eq!(f32, padding_y, 5.0);
+        assert_eq!(height, Some(Length::Fixed(expected_height)));
+        assert_approx_eq!(f32, padding_x, theme.button.image_text_padding_x.value());
+        assert_approx_eq!(f32, padding_y, theme.button.padding_y.value());
     }
 
     #[test]

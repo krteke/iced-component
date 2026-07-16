@@ -519,10 +519,13 @@ mod tests {
         let revision = context.style_revision();
 
         UpdateCx::new(&mut runtime, &mut context).patch_theme(|theme| {
-            theme.spinner.color = Color::new(1, 2, 3);
+            theme.spinner.foreground = Color::new(1, 2, 3);
         });
 
-        assert_eq!(context.theme().pack().spinner.color, Color::new(1, 2, 3));
+        assert_eq!(
+            context.theme().pack().spinner.foreground,
+            Color::new(1, 2, 3)
+        );
         assert_ne!(context.style_revision(), revision);
     }
 
@@ -532,7 +535,7 @@ mod tests {
         let mut context = Context::light();
 
         UpdateCx::new(&mut runtime, &mut context).patch_theme(|theme| {
-            theme.spinner.color = Color::new(1, 2, 3);
+            theme.spinner.foreground = Color::new(1, 2, 3);
         });
         {
             let mut cx = UpdateCx::new(&mut runtime, &mut context);
@@ -541,7 +544,10 @@ mod tests {
         }
 
         assert_eq!(context.theme().mode(), ThemeMode::Light);
-        assert_eq!(context.theme().pack().spinner.color, Color::new(1, 2, 3));
+        assert_eq!(
+            context.theme().pack().spinner.foreground,
+            Color::new(1, 2, 3)
+        );
     }
 
     #[test]
@@ -549,7 +555,7 @@ mod tests {
         let mut runtime = MotionRuntime::new();
         let mut context = Context::light();
         let mut dark = ThemePack::dark();
-        dark.spinner.color = Color::new(9, 8, 7);
+        dark.spinner.foreground = Color::new(9, 8, 7);
 
         {
             let mut cx = UpdateCx::new(&mut runtime, &mut context);
@@ -558,7 +564,10 @@ mod tests {
         }
 
         assert_eq!(context.theme().mode(), ThemeMode::Dark);
-        assert_eq!(context.theme().pack().spinner.color, Color::new(9, 8, 7));
+        assert_eq!(
+            context.theme().pack().spinner.foreground,
+            Color::new(9, 8, 7)
+        );
     }
 
     #[test]

@@ -1,6 +1,7 @@
 //! Material theme tokens and loading errors.
 
 mod error;
+pub(crate) mod interpolate;
 mod opacity;
 #[cfg(test)]
 mod tests;

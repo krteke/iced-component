@@ -27,7 +27,7 @@ mod tests {
     use super::ButtonStateExt;
 
     #[test]
-    fn focus_does_not_change_the_adwaita_style_state() {
+    fn focus_does_not_change_the_profile_style_state() {
         let mut state = ButtonInteractionState::new();
 
         state.apply(ButtonSignal::Focus);

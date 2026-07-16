@@ -35,6 +35,13 @@ define_theme_tokens! {
             state_layer: Color,
             state_layer_opacity: Opacity,
         }
+        #[derive(Copy, Debug, PartialEq)]
+        component LoadingIndicatorTokens {
+            size: Length,
+            active: Color,
+            container: Color,
+            contained_active: Color,
+        }
         palette {
             background {
                 color: Color,
@@ -138,6 +145,7 @@ define_theme_tokens! {
                 focus extends hover,
             }
         }
+        loading_indicator: LoadingIndicatorTokens,
     }
 }
 

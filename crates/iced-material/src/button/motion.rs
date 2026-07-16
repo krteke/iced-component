@@ -6,7 +6,10 @@ use spectrum_theme::Color;
 
 use crate::{
     button::{ButtonStyleState, ButtonVariant, style::visual_from_theme},
-    theme::tokens::{ButtonStyleTokens, ThemePack},
+    theme::{
+        interpolate::color,
+        tokens::{ButtonStyleTokens, ThemePack},
+    },
 };
 
 /// Interpolated Material button visual values.
@@ -121,13 +124,4 @@ impl Interpolate for ButtonVisual {
             ),
         }
     }
-}
-
-fn color(from: Color, to: Color, progress: InterpolationProgress) -> Color {
-    Color::new_rgba(
-        u8::interpolate_progress(&from.red(), &to.red(), progress),
-        u8::interpolate_progress(&from.green(), &to.green(), progress),
-        u8::interpolate_progress(&from.blue(), &to.blue(), progress),
-        u8::interpolate_progress(&from.alpha(), &to.alpha(), progress),
-    )
 }

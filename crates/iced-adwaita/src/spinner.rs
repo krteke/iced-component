@@ -1,10 +1,18 @@
-//! Adwaita spinner components and rendering primitives.
+//! Independent adwaita-like spinner components and rendering primitives.
+//!
+//! This module targets visual compatibility with the Adwaita design language.
+//! It is independently implemented and is not produced, affiliated with, or
+//! endorsed by GNOME or libadwaita.
 
-mod frame;
+mod appearance;
+mod cadence;
+mod sample;
 mod shader;
-mod visual;
+mod timeline;
 mod widget;
 
-pub use frame::SpinnerFrame;
-pub use visual::SpinnerVisual;
-pub use widget::{Spinner, SpinnerArc};
+pub use appearance::SpinnerAppearance;
+pub use cadence::SpinnerCadence;
+pub use sample::SpinnerSample;
+pub use timeline::{SpinnerPlayback, SpinnerTimeline};
+pub use widget::{Spinner, SpinnerRender};

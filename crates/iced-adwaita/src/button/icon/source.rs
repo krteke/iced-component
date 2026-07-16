@@ -1,7 +1,7 @@
 use iced::widget::svg;
 use std::{borrow::Cow, path::PathBuf};
 
-/// Icon source rendered by Adwaita icon-aware components.
+/// Icon source rendered by adwaita-like icon-aware components.
 #[derive(Clone, Debug, PartialEq)]
 pub enum IconSource {
     /// SVG loaded through an Iced SVG handle.

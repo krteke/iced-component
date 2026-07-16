@@ -282,55 +282,63 @@ fn suggested_flat_variant_keeps_suggested_foreground() {
 }
 
 #[test]
-fn rounded_shape_uses_adwaita_css_total_height() {
+fn rounded_shape_uses_profile_layout_tokens() {
     let context = Context::light();
     let button = Button::new("Save");
+    let theme = context.theme().pack();
 
-    let (width, height, padding_x, padding_y) = button.resolved_layout(context.theme().pack());
+    let (width, height, padding_x, padding_y) = button.resolved_layout(theme);
+    let expected_height = theme.button.min_height.value() + theme.button.padding_y.value() * 2.0;
 
     assert_eq!(width, None);
-    assert_eq!(height, Some(Length::Fixed(34.0)));
-    assert_approx_eq!(f32, padding_x, 17.0);
-    assert_approx_eq!(f32, padding_y, 5.0);
+    assert_eq!(height, Some(Length::Fixed(expected_height)));
+    assert_approx_eq!(f32, padding_x, theme.button.padding_x.value());
+    assert_approx_eq!(f32, padding_y, theme.button.padding_y.value());
 }
 
 #[test]
-fn circular_shape_uses_libadwaita_button_size() {
+fn circular_shape_uses_profile_button_size() {
     let context = Context::light();
     let button = Button::new("i").circular();
+    let theme = context.theme().pack();
 
-    let (width, height, padding_x, padding_y) = button.resolved_layout(context.theme().pack());
+    let (width, height, padding_x, padding_y) = button.resolved_layout(theme);
+    let size = theme.button.shape.circular.size.value();
 
-    assert_eq!(width, Some(Length::Fixed(34.0)));
-    assert_eq!(height, Some(Length::Fixed(34.0)));
+    assert_eq!(width, Some(Length::Fixed(size)));
+    assert_eq!(height, Some(Length::Fixed(size)));
     assert_approx_eq!(f32, padding_x, 0.0);
     assert_approx_eq!(f32, padding_y, 0.0);
 }
 
 #[test]
-fn plain_content_layout_uses_libadwaita_base_button_padding() {
+fn plain_content_layout_uses_profile_base_button_padding() {
     let context = Context::light();
     let button = Button::empty();
+    let theme = context.theme().pack();
 
-    let (width, height, padding_x, padding_y) = button.resolved_layout(context.theme().pack());
+    let (width, height, padding_x, padding_y) = button.resolved_layout(theme);
+    let expected_height = theme.button.min_height.value() + theme.button.padding_y.value() * 2.0;
 
     assert_eq!(width, None);
-    assert_eq!(height, Some(Length::Fixed(34.0)));
-    assert_approx_eq!(f32, padding_x, 10.0);
-    assert_approx_eq!(f32, padding_y, 5.0);
+    assert_eq!(height, Some(Length::Fixed(expected_height)));
+    assert_approx_eq!(f32, padding_x, theme.button.base_padding_x.value());
+    assert_approx_eq!(f32, padding_y, theme.button.padding_y.value());
 }
 
 #[test]
-fn image_text_layout_uses_libadwaita_button_content_padding() {
+fn image_text_layout_uses_profile_image_text_padding() {
     let context = Context::light();
     let button = Button::empty().with_content_layout(ButtonContentLayout::ImageText);
+    let theme = context.theme().pack();
 
-    let (width, height, padding_x, padding_y) = button.resolved_layout(context.theme().pack());
+    let (width, height, padding_x, padding_y) = button.resolved_layout(theme);
+    let expected_height = theme.button.min_height.value() + theme.button.padding_y.value() * 2.0;
 
     assert_eq!(width, None);
-    assert_eq!(height, Some(Length::Fixed(34.0)));
-    assert_approx_eq!(f32, padding_x, 9.0);
-    assert_approx_eq!(f32, padding_y, 5.0);
+    assert_eq!(height, Some(Length::Fixed(expected_height)));
+    assert_approx_eq!(f32, padding_x, theme.button.image_text_padding_x.value());
+    assert_approx_eq!(f32, padding_y, theme.button.padding_y.value());
 }
 
 #[test]
